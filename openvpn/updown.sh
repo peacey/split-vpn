@@ -42,7 +42,7 @@ get_gateway() {
 		fi
 	fi
 	if [ -x ${route_net_gateway} ]; then
-		echo "$(date +'%a %b %d %H:%M:%S %Y') updown.sh: No default gateway found."
+		echo "$(date +'%a %b %d %H:%M:%S %Y') $(basename "$0"): No default gateway found."
 	fi
 }
 
@@ -59,7 +59,7 @@ netmask_to_cidr() {
 
 # Add the VPN routes to the custom table.
 add_vpn_routes() {
-	# Flush route table first and get the current non-VPN gateway
+	# Flush route table first and get the current non-VPN gateway.
 	delete_vpn_routes
 	get_gateway
 
@@ -120,28 +120,31 @@ if [ -x ${MARK} ]; then
 	source ./vpn.conf
 fi
 
-# Construct the ip rule
+# Use the iptables script stored in the directory of this script.
+iptables_script="$(dirname "$0")/add-vpn-iptables-rules.sh"
+
+# Construct the ip rule.
 ip_rule="fwmark ${MARK} lookup ${ROUTE_TABLE} pref ${PREF}"
 
 # When OpenVPN calls this script, script_type is either up or down.
-# This script might also be manually called with force-down to force shutown 
+# This script might also be manually called with force-down to force shutdown 
 # regardless of KILLSWITCH settings.
 if [[ "$2" = "force-down" ]]; then
 	kill_rule_watcher
 	delete_all_routes
-	sh /mnt/data/openvpn/add-vpn-iptables-rules.sh force-down $1
+	sh ${iptables_script} force-down $1
 elif [[ "${script_type}" = "up" ]]; then
 	add_blackhole_routes
 	add_vpn_routes
 	run_rule_watcher
-	sh /mnt/data/openvpn/add-vpn-iptables-rules.sh up ${dev}
+	sh ${iptables_script} up ${dev}
 else
    	delete_vpn_routes
-	# Only delete the rules if option is set
+	# Only delete the rules if option is set.
 	if [ ${REMOVE_KILLSWITCH_ON_EXIT} = 1 ]; then
-		# Kill the rule checking daemon
+		# Kill the rule checking daemon.
 		kill_rule_watcher
 		delete_all_routes
-		sh /mnt/data/openvpn/add-vpn-iptables-rules.sh down ${dev}
+		sh ${iptables_script} down ${dev}
 	fi
 fi
