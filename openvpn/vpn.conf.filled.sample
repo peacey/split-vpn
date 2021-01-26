@@ -1,0 +1,57 @@
+### SPLIT VPN OPTIONS ###
+# Enter multiple entries separated by spaces.
+# Do not enter square brackets around the entries.
+
+# Force these sources through the VPN.
+# Format: [brX] for interface. [IP/nn] for IP. [xx:xx:xx:xx:xx:xx] for mac.
+FORCED_SOURCE_INTERFACE="br6"
+FORCED_SOURCE_IPV4="192.168.1.1/32"
+FORCED_SOURCE_IPV6="fd00::60/128"
+FORCED_SOURCE_MAC="00:30:93:10:0a:12"
+
+# Exempt these sources from the VPN. 
+# Format: [IP/nn] for IP. [xx:xx:xx:xx:xx:xx] for mac.
+EXEMPT_SOURCE_IPV4="192.168.1.2/32"
+EXEMPT_SOURCE_IPV6="fd00::2/128 2001:100a:d666:1a22::80/128"
+EXEMPT_SOURCE_MAC="00:ad:23:10:0a:30"
+
+# Format: [tcp/udp/both]-[IP Source]-[port1,port2,...]
+EXEMPT_SOURCE_IPV4_PORT="tcp-192.168.1.1-22,32400,80,443,55555"
+EXEMPT_SOURCE_IPV6_PORT="tcp-2001:100a:d666:1a22::69-22,32400,80,443,55555"
+
+# Exempt these destinations from the VPN. 
+# Format: [IP/nn]
+EXEMPT_DESTINATIONS_IPV4="192.168.1.0/24 10.0.5.3"
+EXEMPT_DESTINATIONS_IPV6="2001:100a:d666:1a22::/56 f000::/4"
+
+# VPN port forwards.
+# Format: [tcp/udp/both]-[VPN Port]-[Forward IP]-[Forward Port]
+PORT_FORWARDS_IPV4="tcp-21674-192.168.1.1-50001"
+PORT_FORWARDS_IPV6="tcp-21674-2001:100a:d666:1a22::69-50001"
+
+# Redirect IPv4 and IPv6 DNS to these addresses for VPN-destined traffic.
+# Note that many VPN providers redirect DNS going through their VPN network
+# to their own DNS servers. So these redirections might not work on their network.
+# Rejecting DNS traffic works for all VPNs however. 
+# IPV4 Format: [IP] to redirect to IP, "DHCP" to obtain DNS from VPN DHCP options, 
+# "REJECT" to reject all DNS traffic.
+DNS_IPV4_IP="DHCP"
+DNS_IPV4_PORT=53
+# IPV6 Format: [IP] to redirect to IP, or "REJECT" to reject IPv6 DNS traffic completely. 
+DNS_IPV6_IP="2606:4700:4700::64"
+DNS_IPV6_PORT=53
+
+# Enabling kill switch drops VPN-destined traffic that doesn't go through the VPN.
+KILLSWITCH=1
+
+# Enable this only if you are testing or you don't care about your real IP leaking
+# when the vpn client restarts or exits.
+REMOVE_KILLSWITCH_ON_EXIT=0
+
+# Options for custom table and chains.
+# These options need to be unique for each instance of openvpn if running multiple.
+ROUTE_TABLE=101
+MARK=0x9
+PREFIX="VPN_"
+PREF=99
+DEV=tun0
