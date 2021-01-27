@@ -58,13 +58,19 @@ openvpn --config nordvpn.ovpn \
         --down /mnt/data/openvpn/updown.sh \
         --script-security 2
 ```
-7. If the connection works, check if your forced clients are on the VPN by visiting http://whatismyip.host/ and seeing if your IPs are different than your WAN. Also, check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you want to test from command line, you can also run the following commands from your clients. Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
-```sh
-curl -4 ifconfig.co
-curl -6 ifconfig.co
-```
-If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6. 
+7. If the connection works, check each client to make sure they are on the VPN by doing the following.
 
+    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients. Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+    ```sh
+    curl -4 ifconfig.co
+    curl -6 ifconfig.co
+    ```
+        
+      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
+
+    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the DNS_IPV4_IP/DNS_IPV6_IP  options, or set DNS_IPV6_IP="REJECT" if your VPN provider does not support IPv6. 
+    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
+    
 8. If everything is working properly, stop the OpenVPN client by pressing Ctrl+C, and then run it in the background with the following command. You can modify the command to change `--ping-restart` or other options as needed. The only requirement is that you run updown.sh script as the up/down script and `--route-noexec` to disable OpenVPN from adding routes to the default table instead of our custom one.
 ```sh
 nohup openvpn --config nordvpn.ovpn \
@@ -176,6 +182,16 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
   <summary>Why I am seeing my real IPv6 address when checking my IP on the Internet?</summary>
   You shouldn't be seeing your real IPv6 address anywhere if you forced your clients over IPv6, even if your VPN doesn't support IPv6. Make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface (FORCED_SOURCE_INTERFACE), MAC address (FORCED_SOURCE_MAC), or the IPv6 directly (FORCED_SOURCE_IPV6). If IPv6 is not supported by your VPN provider, IPv6 traffic should time out or be refused. For additional security if your VPN provider doesn't support IPv6, it is recommended to set the DNS_IPV6_IP option to "REJECT", or disable IPv6 for that network in the UDMP settings, so that IPv6 DNS leaks do not occur.
      
+</details>
+
+<details>
+  <summary>Why am I seeing my real IPv6 address when doing a WebRTC test?</summary>
+  WebRTC is a protocol that allows browsers to get your local and global IPs via JavaScript. WebRTC cannot be completely disabled at the network level because some browsers check the network interface directly to see what IP to return. Since IPv6 has global IPs directly assigned to the network interface, your non-VPN global IPv6 can be directly seen by the browser and leaked to WebRTC JavaScript calls. To solve this, you can do one of the following.
+
+  * Disable WebRTC in the browser (not all browsers allow you to).
+  * Disable JavaScript completely. 
+  * Disable IPv6 completely either directly on the client (if you can), or by using the UDMP's network settings to turn off IPv6 for the client's VLAN.
+  
 </details>
 
 <details>
