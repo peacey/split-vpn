@@ -11,7 +11,7 @@ This is a helper script for the OpenVPN client on the UDMP that creates a split 
 * Exempt sources from the VPN based on IP, MAC address, or IP:port combination. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN, or specific services on forced clients, to exclude from the VPN.
 * Exempt destinations from the VPN by IP. This allows VPN-forced clients to communicate with the LAN.
 * Port forwarding on the VPN side to local clients (not all VPN providers give you ports).
-* Redirect DNS for VPN traffic, or block it completely.
+* Redirect DNS for VPN traffic to either an upstream DNS server or a local server like pihole, or block DNS requests completely.
 * Built-in kill switch via iptables and blackhole routing.
 * Can be used with multiple openvpn instances with separate configurations for each. This allows you to force different clients through different VPN servers. 
 * IPv6 support for all options.
@@ -68,6 +68,7 @@ nohup openvpn --config nordvpn.ovpn \
               --mute-replay-warnings > openvpn.log &
 ```
 9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+10. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
 
 </details>
 
@@ -347,7 +348,9 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
       Redirect DNS IPv4 traffic of VPN-forced clients to this IP and port.
       If set to "DHCP", the DNS will try to be obtained from the DHCP options that the VPN sends. 
       If set to "REJECT", DNS requests over IPv6 will be blocked instead. 
-      Note that many VPN providers redirect all DNS traffic to their servers, so this rule wouldn't make a difference.
+      Note that many VPN providers redirect all DNS traffic to their servers, so redirection to other IPs might not work on all providers.
+      DNS redirects to a local address, or rejecting DNS traffic works for all providers.
+      Make sure to set DNS_IPV4_INTERFACE if redirecting to a local DNS address. 
   
       Format: [IP] or "DHCP" or "REJECT"
       Example: DNS_IPV4_IP="1.1.1.1"
@@ -358,14 +361,37 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
   </details>
   
   <details>
+    <summary>DNS_IPV4_INTERFACE</summary>
+      Set this to the interface (brX) the IPv4 DNS is on if it is a local IP. Leave blank for non-local DNS. 
+      Local DNS redirects will not work without specifying the interface.
+  
+      Format: [brX]
+      Example: DNS_IPV4_INTERFACE="br0"
+
+  </details>
+  
+  <details>
     <summary>DNS_IPV6_IP, DNS_IPV6_PORT</summary>
       Redirect DNS IPv6 traffic of VPN-forced clients to this IP and port. 
       If set to "REJECT", DNS requests over IPv6 will be blocked instead. The REJECT option is recommended to be enabled for VPN providers that don't support IPv6, to eliminate any IPv6 DNS leaks.
+      Note that many VPN providers redirect all DNS traffic to their servers, so redirection to other IPs might not work on all providers.
+      DNS redirects to a local address, or rejecting DNS traffic works for all providers.
+      Make sure to set DNS_IPV6_INTERFACE if redirecting to a local DNS address. 
   
       Format: [IP] or "REJECT"
       Example: DNS_IPV6_IP="2606:4700:4700::64"
       Example: DNS_IPV6_IP="REJECT"
       Example: DNS_IPV6_PORT=53
+
+  </details>
+  
+  <details>
+    <summary>DNS_IPV6_INTERFACE</summary>
+      Set this to the interface (brX) the IPv6 DNS is on if it is a local IP. Leave blank for non-local DNS. 
+      Local DNS redirects will not work without specifying the interface.
+  
+      Format: [brX]
+      Example: DNS_IPV6_INTERFACE="br0"
 
   </details>
   
