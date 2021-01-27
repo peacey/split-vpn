@@ -13,8 +13,10 @@ This is a helper script for the OpenVPN client on the UDMP that creates a split 
 * Port forwarding on the VPN side to local clients (not all VPN providers give you ports).
 * Redirect DNS for VPN traffic to either an upstream DNS server or a local server like pihole, or block DNS requests completely.
 * Built-in kill switch via iptables and blackhole routing.
+* Works across IP changes and network restarts. 
 * Can be used with multiple openvpn instances with separate configurations for each. This allows you to force different clients through different VPN servers. 
 * IPv6 support for all options.
+* Run on boot support via UDM-Utilities boot script.
 
 ## Compatibility
 
