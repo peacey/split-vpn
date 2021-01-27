@@ -106,7 +106,7 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
 ## FAQ
 <details>
   <summary>Can I route clients to different VPN servers?</summary>
-    Yes you can. Simply make a separate directory for each VPN server, and give them each a vpn.conf file with the clients you wish to force through them. Make sure the options ROUTE_TABLE, MARK, PREFIX, PREF, and DEV are unique for each vpn.conf file so the different VPN servers don't share the same tunnel device or mark. 
+    Yes you can. Simply make a separate directory for each VPN server, and give them each a vpn.conf file with the clients you wish to force through them. Make sure the options ROUTE_TABLE, MARK, PREFIX, PREF, and DEV are unique for each vpn.conf file so the different VPN servers don't share the same tunnel device, route table, or fwmark.
    
    Afterwards, modify your run script like so (in this example, we are using Mullvad and NordVPN). Note that you need to cd into the correct directory for each different VPN server before running the openvpn command so that the correct config file is used for each and a unique TUN device is passed to openvpn.
 
@@ -171,6 +171,46 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
     cd /mnt/data/openvpn/nordvpn
     /mnt/data/openvpn/updown.sh tun0 force-down
       
+</details>
+
+<details>
+  <summary>What does this really do to my UDMP?</summary>
+  This script only does the following.
+  
+  1. Adds custom iptable chains and rules to the mangle, nat, and filter tables. You can see them with the following commands (assuming you set PREFIX=VPN_).
+  
+    iptables -t mangle -S | grep VPN
+    iptables -t nat -S | grep VPN
+    iptables -t filter -S | grep VPN
+    ip6tables -t mangle -S | grep VPN
+    ip6tables -t nat -S | grep VPN
+    ip6tables -t filter -S | grep VPN
+    
+  2. Adds VPN routes to custom routing tables that can be seen with the following command (assuming you set ROUTE_TABLE=101).
+  
+    ip route show table 101
+    ip -6 route show table 101
+  
+  2. Adds policy-based routes to redirect marked traffic to the custom tables. You can see them with the following command (look for the fwmark you defined in your config or 0x9 if using default).
+  
+    ip rule
+    ip -6 rule
+    
+  4. Stays running in the background to monitor the policy-based routes every second for any deletions caused by the UDMP operating system, and re-adds them if deleted. The UDMP removes the custom policy-based routes when the WAN IP changes. You can see the script running with:
+  
+    ps | grep updown.sh
+    
+  5. Writes logs to openvpn.log and rule-watcher.log in each VPN server's directory. Logs are overwritten at every run.
+      
+</details>
+
+<details>
+  <summary>Something went wrong. How can I debug?</summary>
+
+  1. First check the openvpn.log file in the VPN server's directory for any errors.
+  2. Check that the iptable rules, policy-based routes, and custom table routes agree with your configuration. See the previous question for how to look this up. 
+  3. Post a bug report if you encounter any reproducible issues. 
+  
 </details>
 
 ## Configuration variables
