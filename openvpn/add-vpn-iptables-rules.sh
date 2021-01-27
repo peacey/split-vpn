@@ -57,6 +57,7 @@ get_dns() {
 	if [[ "${DNS_IPV4_IP}" != "DHCP" ]]; then
 		return
 	fi
+	DNS_IPV4_IP=""
 	# Only check a maximum of 1000 options. Usually only get 1 or 2. 
 	for i in $(seq 1 1000); do
 		foreign_option_i=$(eval echo \$foreign_option_$i)
