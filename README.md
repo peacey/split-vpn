@@ -172,7 +172,7 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
 
 <details>
   <summary>Why I am seeing my real IPv6 address when checking my IP on the Internet?</summary>
-  You shouldn't be seeing your real IPv6 address anywhere if you forced your clients over IPv6, even if your VPN doesn't support IPv6. Make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface (FORCED_SOURCE_INTERFACE), MAC address (FORCED_SOURCE_MAC), or the IPv6 directly (FORCED_SOURCE_IPV6). If IPv6 is not supported by your VPN provider, IPv6 traffic should time out or be refused. For additional security if your VPN provider doesn't support IPv6, it is recommended to set the DNS_IPV6_IP option to "REJECT" so that IPv6 DNS leaks do not occur.
+  You shouldn't be seeing your real IPv6 address anywhere if you forced your clients over IPv6, even if your VPN doesn't support IPv6. Make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface (FORCED_SOURCE_INTERFACE), MAC address (FORCED_SOURCE_MAC), or the IPv6 directly (FORCED_SOURCE_IPV6). If IPv6 is not supported by your VPN provider, IPv6 traffic should time out or be refused. For additional security if your VPN provider doesn't support IPv6, it is recommended to set the DNS_IPV6_IP option to "REJECT", or disable IPv6 for that network in the UDMP settings, so that IPv6 DNS leaks do not occur.
      
 </details>
 
