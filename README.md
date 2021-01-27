@@ -248,7 +248,7 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
     <summary>EXEMPT_SOURCE_IPV4_PORT</summary>
       Exempt an IPv4:Port source from the VPN. This allows you to create exceptions on a port basis, so you can selectively choose which services on a client to tunnel through the VPN and which to tunnel through the default LAN/WAN. For example, you can tunnel all traffic through the VPN for some client, but have port 22 still be accessible over the LAN/WAN so you can SSH to it normally. 
   
-      A single entry can have multiple ports by seperating the ports with commas. Protocal can be tcp, udp or both. 
+      A single entry can have multiple ports by separating the ports with commas. Protocal can be tcp, udp or both. 
       Format: [tcp/udp/both]-[IP Source]-[port1,port2,...]
       Example: EXEMPT_SOURCE_IPV4_PORT="tcp-192.168.1.1-22,32400,80,443 both-192.168.1.3-53"
 
@@ -258,7 +258,7 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
     <summary>EXEMPT_SOURCE_IPV6_PORT</summary>
       Exempt an IPv6:Port source from the VPN. This allows you to create exceptions on a port basis, so you can selectively choose which services on a client to tunnel through the VPN and which to tunnel through the default LAN/WAN. 
   
-      A single entry can have multiple ports by seperating the ports with commas. Protocal can be tcp, udp or both. 
+      A single entry can have multiple ports by separating the ports with commas. Protocal can be tcp, udp or both. 
       Format: [tcp/udp/both]-[IP Source]-[port1,port2,...]
       Example: EXEMPT_SOURCE_IPV6_PORT="tcp-fd00::69-22,32400,80,443 both-fd00::2-53"
 
@@ -305,25 +305,27 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
   <details>
     <summary>DNS_IPV4_IP, DNS_IPV4_PORT</summary>
       Redirect DNS IPv4 traffic of VPN-forced clients to this IP and port.
-      If set to "DHCP", the DNS will try to be obtained from the DHCP options that the VPN sends.
-      Note that many VPN providers redirect all DNS traffic to their servers, so this rule woudldn't make a difference.
+      If set to "DHCP", the DNS will try to be obtained from the DHCP options that the VPN sends. 
+      If set to "REJECT", DNS requests over IPv6 will be blocked instead. 
+      Note that many VPN providers redirect all DNS traffic to their servers, so this rule wouldn't make a difference.
   
-      Format: [IP] or "DHCP"
+      Format: [IP] or "DHCP" or "REJECT"
       Example: DNS_IPV4_IP="1.1.1.1"
       Example: DNS_IPV4_IP="DHCP"
-      Example: DNS_IPV4_PORT="53"
+      Example: DNS_IPV4_IP="REJECT"
+      Example: DNS_IPV4_PORT=53
 
   </details>
   
   <details>
     <summary>DNS_IPV6_IP, DNS_IPV6_PORT</summary>
       Redirect DNS IPv6 traffic of VPN-forced clients to this IP and port. 
-      If set to "REJECT", the DNS requests over IPv6 will be blocked instead. The REJECT option is recommended to be enabled for VPN providers that don't support IPv6, to eliminate any IPv6 DNS leaks.
+      If set to "REJECT", DNS requests over IPv6 will be blocked instead. The REJECT option is recommended to be enabled for VPN providers that don't support IPv6, to eliminate any IPv6 DNS leaks.
   
       Format: [IP] or "REJECT"
       Example: DNS_IPV6_IP="2606:4700:4700::64"
       Example: DNS_IPV6_IP="REJECT"
-      Example: DNS_IPV6_PORT="53"
+      Example: DNS_IPV6_PORT=53
 
   </details>
   
@@ -340,7 +342,7 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
     <summary>REMOVE_KILLSWITCH_ON_EXIT</summary>
       Remove the killswitch on exit. 
       It is recommended to set this to 0 so that the killswitch is not removed in case the openvpn client crashes, disconnects, or restarts. 
-      Setting this to 1 will remove the killswitch when the openvpn client restarts, which means clients might be able to communicate with your default WAN while the client is restarting. 
+      Setting this to 1 will remove the killswitch when the openvpn client restarts, which means clients might be able to communicate with your default WAN and leak your real IP while the openvpn client is restarting. 
   
       Format: 0 or 1
       Example: REMOVE_KILLSWITCH_ON_EXIT=0
