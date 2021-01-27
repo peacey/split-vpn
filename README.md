@@ -98,8 +98,8 @@ nohup openvpn --config nordvpn.ovpn \
 Remember to modify the `cd` line and the `--config` openvpn option to point to your config. Comment out the `add-vpn-iptables-rules.sh` line if you want the iptables kill switch to not be activated until after the VPN connects.
 
 3. Run `chmod +x /mnt/data/on_boot.d/run-vpn.sh` to give the script execute permissions. 
-4. That's it. Now the VPN will start at every boot.
-5. Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN, because the kill switch has not been activated yet. After the script runs, forced clients will not be able to access your WAN even if openvpn crashes or restarts (see the option).
+4. That's it. Now the VPN will start at every boot. 
+5. Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN and might leak their real IP, because the kill switch has not been activated yet. After the script runs, forced clients will not be able to access your WAN even if openvpn crashes or restarts (see the [REMOVE_KILLSWITCH_ON_EXIT](#configuration-variables) option below).
 
 </details>
 
