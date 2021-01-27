@@ -52,7 +52,7 @@ add_rule() {
 }
 
 # Get the first IPv4 DNS server provided by the VPN server's DHCP options if option is set.
-# These options are found in foreign_option_i.
+# These options are found in foreign_option_i. 
 get_dns() {
 	if [[ "${DNS_IPV4_IP}" != "DHCP" ]]; then
 		return
@@ -150,13 +150,13 @@ add_iptables_rules() {
 			add_rule IPV4 filter "INPUT -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 			add_rule IPV4 filter "FORWARD -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 		elif [ ! -x ${DNS_IPV4_IP} ]; then
-			add_rule IPV4 nat "PREROUTING -m mark --mark ${MARK} -p ${proto} ! -s ${DNS_IPV4_IP} ! -d ${DNS_IPV4_IP} --dport 53 -j DNAT --to ${DNS_IPV4_IP}:${DNS_IPV4_PORT}"
+			add_rule IPV4 nat "PREROUTING -m mark --mark ${MARK} -p ${proto} ! -s ${DNS_IPV4_IP} ! -d ${DNS_IPV4_IP} --dport 53 -j DNAT --to ${DNS_IPV4_IP}:${DNS_IPV4_PORT:-53}"
 		fi
 		if [[ "${DNS_IPV6_IP}" = "REJECT" ]]; then
 			add_rule IPV6 filter "INPUT -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 			add_rule IPV6 filter "FORWARD -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 		elif [ ! -x ${DNS_IPV6_IP} ]; then
-			add_rule IPV6 nat "PREROUTING -m mark --mark ${MARK} -p ${proto} ! -s ${DNS_IPV6_IP} ! -d ${DNS_IPV6_IP} --dport 53 -j DNAT --to [${DNS_IPV6_IP}]:${DNS_IPV6_PORT}"
+			add_rule IPV6 nat "PREROUTING -m mark --mark ${MARK} -p ${proto} ! -s ${DNS_IPV6_IP} ! -d ${DNS_IPV6_IP} --dport 53 -j DNAT --to [${DNS_IPV6_IP}]:${DNS_IPV6_PORT:-53}"
 		fi
 	done
 
