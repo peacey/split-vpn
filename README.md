@@ -16,6 +16,10 @@ This is a helper script for the OpenVPN client on the UDMP that creates a split 
 * Can be used with multiple openvpn instances with separate configurations for each. This allows you to force different clients through different VPN servers. 
 * IPv6 support for all options.
 
+## Compatibility
+
+This script is designed to be run on the UDM-Pro. It has only been tested on version 1.8.6, however other versions should work. This has not yet been tested on the UDM (non-pro). Please submit a bug report if you use this on a different version and encounter issues. 
+
 ## How do I use this?
 
 <details>
@@ -152,7 +156,7 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
 
 <details>
   <summary>Does the VPN still work when my IP changes because of lease renewals or other disconnect reasons?</summary>
-    Yes, as long as you add the "--ping-restart X" option to the openvpn command line when you run it. This ensures that if there is a network disconnect for any reason, the OpenVPN client will restart and re-configure itself after X seconds. The killswitch will still be active during the restart to block non-VPN traffic as long as you set REMOVE_KILLSWITCH_ON_EXIT=0 in the config.
+    Yes, as long as you add the "--ping-restart X" option to the openvpn command line when you run it. This ensures that if there is a network disconnect for any reason, the OpenVPN client will restart and try to re-configure itself after X seconds until it connects again. The killswitch will still be active during the restart to block non-VPN traffic as long as you set REMOVE_KILLSWITCH_ON_EXIT=0 in the config.
   
 </details>
 
