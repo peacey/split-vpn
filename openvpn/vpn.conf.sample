@@ -15,7 +15,8 @@ EXEMPT_SOURCE_IPV4=""
 EXEMPT_SOURCE_IPV6=""
 EXEMPT_SOURCE_MAC=""
 
-# Format: [tcp/udp/both]-[IP Source]-[port1,port2,...]
+# Format: [tcp/udp/both]-[IP Source]-[port1,port2:port3,port4,...]
+# Maximum 15 ports per entry.
 EXEMPT_SOURCE_IPV4_PORT=""
 EXEMPT_SOURCE_IPV6_PORT=""
 
