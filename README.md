@@ -11,7 +11,7 @@ This is a helper script for the OpenVPN client on the UDMP that creates a split 
 * Exempt sources from the VPN based on IP, MAC address, or IP:port combination. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN, or specific services on forced clients, to exclude from the VPN.
 * Exempt destinations from the VPN by IP. This allows VPN-forced clients to communicate with the LAN.
 * Port forwarding on the VPN side to local clients (not all VPN providers give you ports).
-* Redirect DNS for VPN traffic, or block it for IPv6. 
+* Redirect DNS for VPN traffic, or block it completely.
 * Built-in kill switch via iptables and blackhole routing.
 * Can be used with multiple openvpn instances with separate configurations for each. This allows you to force different clients through different VPN servers. 
 * IPv6 support for all options.
