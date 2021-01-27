@@ -60,11 +60,11 @@ get_dns() {
 	# Only check a maximum of 1000 options. Usually only get 1 or 2. 
 	for i in $(seq 1 1000); do
 		foreign_option_i=$(eval echo \$foreign_option_$i)
-		if [ -x "${foreign_option_i}" ]; then
+		if [ -z "${foreign_option_i}" ]; then
 			break
 		fi
 		dns=$(echo "${foreign_option_i}" | sed -E s/".*dhcp-option DNS ([0-9\.]+).*"/"\1"/g)
-		if [ -x "${dns}" ]; then
+		if [ -z "${dns}" ]; then
 			continue
 		fi
 		DNS_IPV4_IP="${dns}"
@@ -149,9 +149,9 @@ add_iptables_rules() {
 		if [[ "${DNS_IPV4_IP}" = "REJECT" ]]; then
 			add_rule IPV4 filter "INPUT -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 			add_rule IPV4 filter "FORWARD -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
-		elif [ ! -x ${DNS_IPV4_IP} ]; then
+		elif [ ! -z "${DNS_IPV4_IP}" ]; then
 			add_rule IPV4 nat "PREROUTING -m mark --mark ${MARK} -p ${proto} ! -s ${DNS_IPV4_IP} ! -d ${DNS_IPV4_IP} --dport 53 -j DNAT --to ${DNS_IPV4_IP}:${DNS_IPV4_PORT:-53}"
-			if [ ! -x ${DNS_IPV4_INTERFACE} ]; then
+			if [ ! -z "${DNS_IPV4_INTERFACE}" ]; then
 				add_rule IPV4 mangle "FORWARD -m mark --mark ${MARK} -d ${DNS_IPV4_IP} -p ${proto} --dport ${DNS_IPV4_PORT:-53} -j MARK --set-xmark 0x0"
 				ip route replace ${DNS_IPV4_IP} dev ${DNS_IPV4_INTERFACE} table ${ROUTE_TABLE}
 			fi
@@ -159,9 +159,9 @@ add_iptables_rules() {
 		if [[ "${DNS_IPV6_IP}" = "REJECT" ]]; then
 			add_rule IPV6 filter "INPUT -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 			add_rule IPV6 filter "FORWARD -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
-		elif [ ! -x ${DNS_IPV6_IP} ]; then
+		elif [ ! -z "${DNS_IPV6_IP}" ]; then
 			add_rule IPV6 nat "PREROUTING -m mark --mark ${MARK} -p ${proto} ! -s ${DNS_IPV6_IP} ! -d ${DNS_IPV6_IP} --dport 53 -j DNAT --to [${DNS_IPV6_IP}]:${DNS_IPV6_PORT:-53}"
-			if [ ! -x ${DNS_IPV6_INTERFACE} ]; then
+			if [ ! -z "${DNS_IPV6_INTERFACE}" ]; then
 				add_rule IPV6 mangle "FORWARD -m mark --mark ${MARK} -d ${DNS_IPV6_IP} -p ${proto} --dport ${DNS_IPV6_PORT:-53} -j MARK --set-xmark 0x0"
 				ip -6 route replace ${DNS_IPV6_IP} dev ${DNS_IPV6_INTERFACE} table ${ROUTE_TABLE}
 			fi
@@ -220,12 +220,12 @@ delete_killswitch() {
 }
 
 # If configuration variables are not present, source the config file from the PWD.
-if [ -x ${MARK} ]; then
+if [ -z "${MARK}" ]; then
 	source ./vpn.conf
 fi
 
 # Default to tun0 if no device name was passed to this script
-if [ -x "$2" ]; then
+if [ -z "$2" ]; then
 	dev=tun0
 else
 	dev="$2"
