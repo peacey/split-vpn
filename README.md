@@ -8,7 +8,7 @@ This is a helper script for the OpenVPN client on the UDMP that creates a split 
 ## Features
 
 * Force traffic to the VPN based on source interface (VLAN), MAC address, or IP address.
-* Exempt sources from the VPN based on IP, MAC address, or IP:port combination. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN to exclude.
+* Exempt sources from the VPN based on IP, MAC address, or IP:port combination. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN, or specific services on forced clients, to exclude from the VPN.
 * Exempt destinations from the VPN by IP. This allows VPN-forced clients to communicate with the LAN.
 * Port forwarding on the VPN side to local clients (not all VPN providers give you ports).
 * Redirect DNS for VPN traffic, or block it for IPv6. 
@@ -166,8 +166,9 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
   
   1. If you don't want to delete the killswitch and leak your real IP, re-run the openvpn run script or command to bring the VPN back up again.
 
-  2. If you want to delete the killswitch so your forced clients can access your default network again instead of go through the VPN, run the following command (replace tun0 with the device you defined in the config file). 
+  2. If you want to delete the killswitch so your forced clients can access your default network again instead of go through the VPN, run the following command (replace tun0 with the device you defined in the config file) after changing to the directory with the vpn.conf file. 
     
+    cd /mnt/data/openvpn/nordvpn
     /mnt/data/openvpn/updown.sh tun0 force-down
       
 </details>
