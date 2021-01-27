@@ -109,27 +109,23 @@ add_iptables_rules() {
 		proto=$(echo "$entry" | cut -d'-' -f1)
 		source_ip=$(echo "$entry" | cut -d'-' -f2)
 		sports=$(echo "$entry" | cut -d'-' -f3)
-		for sport in $(echo "${sports}" | sed s/","/" "/g); do
-			if [[ "$proto" = "both" ]]; then
-				add_rule IPV4 mangle "PREROUTING -p tcp -s ${source_ip} --sport ${sport} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
-				add_rule IPV4 mangle "PREROUTING -p udp -s ${source_ip} --sport ${sport} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
-			else
-				add_rule IPV4 mangle "PREROUTING -p ${proto} -s ${source_ip} --sport ${sport} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
-			fi
-		done
+		if [[ "$proto" = "both" ]]; then
+			add_rule IPV4 mangle "PREROUTING -p tcp -s ${source_ip} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+			add_rule IPV4 mangle "PREROUTING -p udp -s ${source_ip} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		else
+			add_rule IPV4 mangle "PREROUTING -p ${proto} -s ${source_ip} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		fi
 	done
 	for entry in ${EXEMPT_SOURCE_IPV6_PORT}; do
 		proto=$(echo "$entry" | cut -d'-' -f1)
 		source_ip=$(echo "$entry" | cut -d'-' -f2)
 		sports=$(echo "$entry" | cut -d'-' -f3)
-		for sport in $(echo "${sports}" | sed s/","/" "/g); do
-			if [[ "$proto" = "both" ]]; then
-				add_rule IPV6 mangle "PREROUTING -p tcp -s ${source_ip} --sport ${sport} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
-				add_rule IPV6 mangle "PREROUTING -p udp -s ${source_ip} --sport ${sport} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
-			else
-				add_rule IPV6 mangle "PREROUTING -p ${proto} -s ${source_ip} --sport ${sport} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
-			fi
-		done
+		if [[ "$proto" = "both" ]]; then
+			add_rule IPV6 mangle "PREROUTING -p tcp -s ${source_ip} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+			add_rule IPV6 mangle "PREROUTING -p udp -s ${source_ip} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		else
+			add_rule IPV6 mangle "PREROUTING -p ${proto} -s ${source_ip} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		fi
 	done
 
 	# Exempt IPv4/IPv6 destinations from VPN
