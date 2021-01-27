@@ -56,7 +56,13 @@ openvpn --config nordvpn.ovpn \
         --down /mnt/data/openvpn/updown.sh \
         --script-security 2
 ```
-7. If the connection works, check if your forced clients are on the VPN by visiting http://whatismyip.host/ and seeing if your IPs are different than your WAN. Also, check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/.
+7. If the connection works, check if your forced clients are on the VPN by visiting http://whatismyip.host/ and seeing if your IPs are different than your WAN. Also, check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you want to test from command line, you can also run the following commands from your clients. Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+```sh
+curl -4 ifconfig.co
+curl -6 ifconfig.co
+```
+If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6. 
+
 8. If everything is working properly, stop the OpenVPN client by pressing Ctrl+C, and then run it in the background with the following command. You can modify the command to change `--ping-restart` or other options as needed. The only requirement is that you run updown.sh script as the up/down script and `--route-noexec` to disable OpenVPN from adding routes to the default table instead of our custom one.
 ```sh
 nohup openvpn --config nordvpn.ovpn \
@@ -153,6 +159,27 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
     
     kill -TERM $(pgrep -f "openvpn.*tun0")
   
+</details>
+
+<details>
+  <summary>How do I check port forwarding on the VPN side is working?</summary>
+  Use a port checking tool (like https://websistent.com/tools/open-port-check-tool/) and enter your VPN IP and VPN port number to test. Check both IPv6 and IPv4 if using. Alternatively, you can run the following command on your client which tells your IP and if the port is open. Make sure you are not seeing your real IP here and that the status for the port is reachable. Replace 21674 with your VPN port number. 
+  
+     curl -4 https://am.i.mullvad.net/port/21674
+     curl -6 https://am.i.mullvad.net/port/21674
+     
+</details>
+
+<details>
+  <summary>Why I am seeing my real IPv6 address when checking my IP on the Internet?</summary>
+  You shouldn't be seeing your real IPv6 address anywhere if you forced your clients over IPv6, even if your VPN doesn't support IPv6. Make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface (FORCED_SOURCE_INTERFACE), MAC address (FORCED_SOURCE_MAC), or the IPv6 directly (FORCED_SOURCE_IPV6). If IPv6 is not supported by your VPN provider, IPv6 traffic should time out or be refused. For additional security if your VPN provider doesn't support IPv6, it is recommended to set the DNS_IPV6_IP option to "REJECT" so that IPv6 DNS leaks do not occur.
+     
+</details>
+
+<details>
+  <summary>My VPN provdider doesn't support IPv6. Why do my forced clients have a delay in communicating to the Internet?</summary>
+  If your VPN provider doesn't support IPv6 but you have IPv6 enabled on the network, clients will attempt to communicate over IPv6 first then fallback to IPv4 when the connection fails, since IPv6 is not supported on the VPN. To avoid this delay, it is recommended to disable IPv6 for that network/VLAN in the UDMP settings, or on the client directly. This ensures that the clients only use IPv4 and don't have to wait for IPv6 to time out first.
+     
 </details>
 
 <details>
