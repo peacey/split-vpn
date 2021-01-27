@@ -31,15 +31,23 @@ PORT_FORWARDS_IPV6=""
 
 # Redirect IPv4 and IPv6 DNS to these addresses for VPN-destined traffic.
 # Note that many VPN providers redirect DNS going through their VPN network
-# to their own DNS servers. So these redirections might not work on their network.
-# Rejecting DNS traffic works for all VPNs however. 
+# to their own DNS servers. Redirection to other IPs might not work on all providers,
+# except for DNS redirects to a local address, or rejecting DNS traffic completely. 
+#
 # IPV4 Format: [IP] to redirect to IP, "DHCP" to obtain DNS from VPN DHCP options, 
 # "REJECT" to reject all DNS traffic.
+#
+# Example: Get DNS from DHCP
 DNS_IPV4_IP="DHCP"
 DNS_IPV4_PORT=53
+# Set this to the interface (brX) the DNS is on if it is a local IP. Leave blank for 
+# non-local IPs. Local DNS redirects will not work without specifying the interface. 
+DNS_IPV4_INTERFACE=""
+
 # IPV6 Format: [IP] to redirect to IP, or "REJECT" to reject IPv6 DNS traffic completely. 
 DNS_IPV6_IP=""
 DNS_IPV6_PORT=53
+DNS_IPV6_INTERFACE=""
 
 # Enabling kill switch drops VPN-destined traffic that doesn't go through the VPN.
 KILLSWITCH=1

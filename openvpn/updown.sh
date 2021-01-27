@@ -104,12 +104,15 @@ add_blackhole_routes() {
 delete_vpn_routes() {
 	ip route show table ${ROUTE_TABLE} | grep -v blackhole | 
 		xargs -I{} sh -c "ip route del {} table ${ROUTE_TABLE}"	
+	ip -6 route show table ${ROUTE_TABLE} | grep -v blackhole | 
+		xargs -I{} sh -c "ip -6 route del {} table ${ROUTE_TABLE}"	
 }
 
 # Delete all (flush) routes from custom route table.
 # This includes VPN and blackhole routes.
 delete_all_routes() {	
 	ip route flush table ${ROUTE_TABLE}
+	ip -6 route flush table ${ROUTE_TABLE}
 }
 
 ### END OF FUNCTIONS ###

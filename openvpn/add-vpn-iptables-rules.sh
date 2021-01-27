@@ -6,7 +6,7 @@ set -e
 
 # ./add-vpn-iptables-rules.sh [up/down/force-down] [tun_dev]
 
-CHAINS="mangle:PREROUTING mangle:POSTROUTING nat:PREROUTING nat:POSTROUTING filter:INPUT filter:FORWARD"
+CHAINS="mangle:PREROUTING mangle:POSTROUTING mangle:FORWARD nat:PREROUTING nat:POSTROUTING filter:INPUT filter:FORWARD"
 
 # Create the iptables chains
 create_chains() {
@@ -151,12 +151,20 @@ add_iptables_rules() {
 			add_rule IPV4 filter "FORWARD -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 		elif [ ! -x ${DNS_IPV4_IP} ]; then
 			add_rule IPV4 nat "PREROUTING -m mark --mark ${MARK} -p ${proto} ! -s ${DNS_IPV4_IP} ! -d ${DNS_IPV4_IP} --dport 53 -j DNAT --to ${DNS_IPV4_IP}:${DNS_IPV4_PORT:-53}"
+			if [ ! -x ${DNS_IPV4_INTERFACE} ]; then
+				add_rule IPV4 mangle "FORWARD -m mark --mark ${MARK} -d ${DNS_IPV4_IP} -p ${proto} --dport ${DNS_IPV4_PORT:-53} -j MARK --set-xmark 0x0"
+				ip route replace ${DNS_IPV4_IP} dev ${DNS_IPV4_INTERFACE} table ${ROUTE_TABLE}
+			fi
 		fi
 		if [[ "${DNS_IPV6_IP}" = "REJECT" ]]; then
 			add_rule IPV6 filter "INPUT -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 			add_rule IPV6 filter "FORWARD -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 		elif [ ! -x ${DNS_IPV6_IP} ]; then
 			add_rule IPV6 nat "PREROUTING -m mark --mark ${MARK} -p ${proto} ! -s ${DNS_IPV6_IP} ! -d ${DNS_IPV6_IP} --dport 53 -j DNAT --to [${DNS_IPV6_IP}]:${DNS_IPV6_PORT:-53}"
+			if [ ! -x ${DNS_IPV6_INTERFACE} ]; then
+				add_rule IPV6 mangle "FORWARD -m mark --mark ${MARK} -d ${DNS_IPV6_IP} -p ${proto} --dport ${DNS_IPV6_PORT:-53} -j MARK --set-xmark 0x0"
+				ip -6 route replace ${DNS_IPV6_IP} dev ${DNS_IPV6_INTERFACE} table ${ROUTE_TABLE}
+			fi
 		fi
 	done
 
