@@ -289,19 +289,23 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
     <summary>EXEMPT_SOURCE_IPV4_PORT</summary>
       Exempt an IPv4:Port source from the VPN. This allows you to create exceptions on a port basis, so you can selectively choose which services on a client to tunnel through the VPN and which to tunnel through the default LAN/WAN. For example, you can tunnel all traffic through the VPN for some client, but have port 22 still be accessible over the LAN/WAN so you can SSH to it normally. 
   
-      A single entry can have multiple ports by separating the ports with commas. Protocal can be tcp, udp or both. 
-      Format: [tcp/udp/both]-[IP Source]-[port1,port2,...]
-      Example: EXEMPT_SOURCE_IPV4_PORT="tcp-192.168.1.1-22,32400,80,443 both-192.168.1.3-53"
+      A single entry can have up to 15 multiple ports by separating the ports with commas. 
+      Ranges of ports can be defined with a colon like 5000:6000, and take up two ports in the entry. 
+      Protocal can be tcp, udp or both. 
+      Format: [tcp/udp/both]-[IP Source]-[port1,port2:port3,port4,...]
+      Example: EXEMPT_SOURCE_IPV4_PORT="tcp-192.168.1.1-22,32400,80:90,443 both-192.168.1.3-53"
 
   </details>
   
   <details>
     <summary>EXEMPT_SOURCE_IPV6_PORT</summary>
       Exempt an IPv6:Port source from the VPN. This allows you to create exceptions on a port basis, so you can selectively choose which services on a client to tunnel through the VPN and which to tunnel through the default LAN/WAN. 
-  
-      A single entry can have multiple ports by separating the ports with commas. Protocal can be tcp, udp or both. 
-      Format: [tcp/udp/both]-[IP Source]-[port1,port2,...]
-      Example: EXEMPT_SOURCE_IPV6_PORT="tcp-fd00::69-22,32400,80,443 both-fd00::2-53"
+ 
+      A single entry can have up to 15 multiple ports by separating the ports with commas. 
+      Ranges of ports can be defined with a colon like 5000:6000, and take up two ports in the entry. 
+      Protocal can be tcp, udp or both. 
+      Format: [tcp/udp/both]-[IP Source]-[port1,port2:port3,port4,...]
+      Example: EXEMPT_SOURCE_IPV6_PORT="tcp-fd00::69-22,32400,80:90,443 both-fd00::2-53"
 
   </details> 
   
