@@ -9,7 +9,7 @@ This is a helper script for the OpenVPN client on the UDMP that creates a split 
 
 * Force traffic to the VPN based on source interface (VLAN), MAC address, or IP address.
 * Exempt sources from the VPN based on IP, MAC address, or IP:port combination. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN, or specific services on forced clients, to exclude from the VPN.
-* Exempt destinations from the VPN by IP. This allows VPN-forced clients to communicate with the LAN.
+* Exempt destinations from the VPN by IP. This allows VPN-forced clients to communicate with the LAN or other VLANs.
 * Port forwarding on the VPN side to local clients (not all VPN providers give you ports).
 * Redirect DNS for VPN traffic to either an upstream DNS server or a local server like pihole, or block DNS requests completely.
 * Built-in kill switch via iptables and blackhole routing.
@@ -338,7 +338,7 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
   
   <details>
     <summary>EXEMPT_DESTINATIONS_IPV4</summary>
-      Exempt IPv4 destinations from the VPN. For example, you can allow a LAN subnet so VPN-forced clients are still able to communicate with others on the LAN, or you can exempt a local DNS address if you want to have local DNS to your pihole or DoH client.
+      Exempt IPv4 destinations from the VPN. For example, you can allow a LAN subnet so VPN-forced clients are still able to communicate with others on that VLAN, or you can exempt a local DNS address if you want to have local DNS to your pihole or DoH client.
   
       Format: [IP/nn]
       Example: EXEMPT_DESTINATIONS_IPV4="192.168.1.0/24 10.0.5.3/32"
@@ -347,7 +347,7 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
 
   <details>
     <summary>EXEMPT_DESTINATIONS_IPV6</summary>
-      Exempt IPv6 destinations from the VPN.  
+      Exempt IPv6 destinations from the VPN. For example, you can allow a LAN subnet so VPN-forced clients are still able to communicate with others on that VLAN, or you can exempt a local DNS address if you want to have local DNS to your pihole or DoH client.
   
       Format: [IP/nn]
       Example: EXEMPT_DESTINATIONS_IPV6="fd62:1200:1300:1400::2/32 2001:1111:2222:3333::/56"
