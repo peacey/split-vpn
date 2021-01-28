@@ -143,7 +143,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     ```sh
     #!/bin/sh
 
-    # Load configuartion for mullvad and run openvpn
+    # Load configuration for mullvad and run openvpn
     cd /mnt/data/openvpn/mullvad
     source ./vpn.conf
     /mnt/data/openvpn/add-vpn-iptables-rules.sh up ${DEV}
@@ -156,7 +156,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
                   --ping-restart 15 \
                   --mute-replay-warnings > openvpn.log &
 
-    # Load configuartion for nordvpn and run openvpn
+    # Load configuration for nordvpn and run openvpn
     cd /mnt/data/openvpn/nordvpn
     source ./vpn.conf
     /mnt/data/openvpn/add-vpn-iptables-rules.sh up ${DEV}
