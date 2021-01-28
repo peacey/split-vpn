@@ -22,8 +22,6 @@ This is a helper script for the OpenVPN client on the UDMP that creates a split 
 
 This script is designed to be run on the UDM-Pro. It has only been tested on version 1.8.6, however other versions should work. This has not yet been tested on the UDM (non-pro). Please submit a bug report if you use this on a different version and encounter issues. 
 
-This script runs with the Bourne Shell interpreter (sh) on the base OS of the UDMP. This script will not work with bash, dash, or ash due to syntax differences.
-
 ## How do I use this?
 
 <details>
