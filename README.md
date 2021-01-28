@@ -28,59 +28,70 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
   <summary>Click here to see the instructions.</summary>
 
 1. SSH into the UDM/P (assuming it's on 192.168.1.254).
-```sh
-ssh root@192.168.1.254
-```
+
+    ```sh
+    ssh root@192.168.1.254
+    ```
+    
 2. Download the scripts package and extract it to `/mnt/data/openvpn`.
-```sh
-cd /mnt/data
-mkdir /mnt/data/openvpn
-curl -sL https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/openvpn/*" -j -d openvpn && chmod +x openvpn/*.sh
-```
+
+    ```sh
+    cd /mnt/data
+    mkdir /mnt/data/openvpn
+    curl -sL https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/openvpn/*" -j -d openvpn && chmod +x openvpn/*.sh
+    ```
+    
 3. Create a directory for your VPN provider's openvpn configuration files, and copy your VPN's configuration files (certificates, config, password files, etc) and the sample vpn.conf from `/mnt/data/openvpn/vpn.conf.sample`. NordVPN is used below as an example. 
-```sh
-mkdir /mnt/data/openvpn/nordvpn
-cd /mnt/data/openvpn/nordvpn
-curl https://downloads.nordcdn.com/configs/files/ovpn_legacy/servers/us-ca12.nordvpn.com.udp1194.ovpn --out nordvpn.ovpn
-cp /mnt/data/openvpn/vpn.conf.sample /mnt/data/openvpn/nordvpn/vpn.conf
-```
-4. If your VPN provider uses a username/password, put them in a username_password.txt file in the same directory as the configuration with the username on the first line and password on the second line. Then either: 
+
+    ```sh
+    mkdir /mnt/data/openvpn/nordvpn
+    cd /mnt/data/openvpn/nordvpn
+    curl https://downloads.nordcdn.com/configs/files/ovpn_legacy/servers/us-ca12.nordvpn.com.udp1194.ovpn --out nordvpn.ovpn
+    cp /mnt/data/openvpn/vpn.conf.sample /mnt/data/openvpn/nordvpn/vpn.conf
+    ```
+    
+4. If your VPN provider uses a username/password, put them in a `username_password.txt` file in the same directory as the configuration with the username on the first line and password on the second line. Then either: 
     * Edit your VPN provider's openvpn config you downloaded in step 3 to reference the username_password.txt file by adding/changing this directive: `auth-user-pass username_password.txt`.
     * Use the `--auth-user-pass username_password.txt` option when you run openvpn below in step 6 or 8. 
     
     NOTE: The username/password for openvpn are usually given to you in a file or in your VPN provider's online portal. They are usually not the same as your login to the VPN. 
-5. Edit the vpn.conf file with your desired settings. See the explanation of each setting [below](#configuration-variables). 
+5. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). 
 6. Run OpenVPN in the foreground to test if everything is working properly.
-```sh
-openvpn --config nordvpn.ovpn \
-        --route-noexec \
-        --up /mnt/data/openvpn/updown.sh \
-        --down /mnt/data/openvpn/updown.sh \
-        --script-security 2
-```
+
+    ```sh
+    openvpn --config nordvpn.ovpn \
+            --route-noexec \
+            --up /mnt/data/openvpn/updown.sh \
+            --down /mnt/data/openvpn/updown.sh \
+            --script-security 2
+    ```
+    
 7. If the connection works, check each client to make sure they are on the VPN by doing the following.
 
     * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients. Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
-    ```sh
-    curl -4 ifconfig.co
-    curl -6 ifconfig.co
-    ```
+    
+      ```sh
+      curl -4 ifconfig.co
+      curl -6 ifconfig.co
+      ```
         
       If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
 
-    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the DNS_IPV4_IP/DNS_IPV6_IP  options, or set DNS_IPV6_IP="REJECT" if your VPN provider does not support IPv6. 
+    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
     * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
     
 8. If everything is working properly, stop the OpenVPN client by pressing Ctrl+C, and then run it in the background with the following command. You can modify the command to change `--ping-restart` or other options as needed. The only requirement is that you run updown.sh script as the up/down script and `--route-noexec` to disable OpenVPN from adding routes to the default table instead of our custom one.
-```sh
-nohup openvpn --config nordvpn.ovpn \
-              --route-noexec \
-              --up /mnt/data/openvpn/updown.sh \
-              --down /mnt/data/openvpn/updown.sh \
-              --script-security 2 \
-              --ping-restart 15 \
-              --mute-replay-warnings > openvpn.log &
-```
+
+    ```sh
+    nohup openvpn --config nordvpn.ovpn \
+                  --route-noexec \
+                  --up /mnt/data/openvpn/updown.sh \
+                  --down /mnt/data/openvpn/updown.sh \
+                  --script-security 2 \
+                  --ping-restart 15 \
+                  --mute-replay-warnings > openvpn.log &
+    ```
+    
 9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 10. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
 
@@ -90,27 +101,30 @@ nohup openvpn --config nordvpn.ovpn \
 
 <details>
   <summary>Click here to see the instructions.</summary>
-
-You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-utilities/tree/master/on-boot-script) to run the VPN script at boot. The boot script survives across firmware upgrades too.
-
+  
+  You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-utilities/tree/master/on-boot-script) to run the VPN script at boot. The boot script survives across firmware upgrades too. 
+  
 1. Set-up UDM Utilities Boot Script by following the instructions [here](https://github.com/boostchicken/udm-utilities/blob/master/on-boot-script/README.md).
+  
 2. Create a new file under `/mnt/data/on_boot.d/run-vpn.sh` and fill it with the following. 
-```sh
-#!/bin/sh
-# Load configuration and run openvpn
-cd /mnt/data/openvpn/nordvpn
-source ./vpn.conf
-/mnt/data/openvpn/add-vpn-iptables-rules.sh up ${DEV}
-nohup openvpn --config nordvpn.ovpn \
-              --route-noexec \
-              --up /mnt/data/openvpn/updown.sh \
-              --down /mnt/data/openvpn/updown.sh \
-              --dev-type tun --dev ${DEV} \
-              --script-security 2 \
-              --ping-restart 15 \
-              --mute-replay-warnings > openvpn.log &
-```
-Remember to modify the `cd` line and the `--config` openvpn option to point to your config. Comment out the `add-vpn-iptables-rules.sh` line if you want the iptables kill switch to not be activated until after the VPN connects.
+
+    ```sh
+    #!/bin/sh
+    # Load configuration and run openvpn
+    cd /mnt/data/openvpn/nordvpn
+    source ./vpn.conf
+    /mnt/data/openvpn/add-vpn-iptables-rules.sh up ${DEV}
+    nohup openvpn --config nordvpn.ovpn \
+                  --route-noexec \
+                  --up /mnt/data/openvpn/updown.sh \
+                  --down /mnt/data/openvpn/updown.sh \
+                  --dev-type tun --dev ${DEV} \
+                  --script-security 2 \
+                  --ping-restart 15 \
+                  --mute-replay-warnings > openvpn.log &
+    ```
+
+    Remember to modify the `cd` line and the `--config` openvpn option to point to your config. Comment out the `add-vpn-iptables-rules.sh` line if you want the iptables kill switch to not be activated until after the VPN connects.
 
 3. Run `chmod +x /mnt/data/on_boot.d/run-vpn.sh` to give the script execute permissions. 
 4. That's it. Now the VPN will start at every boot. 
@@ -121,10 +135,12 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
 ## FAQ
 <details>
   <summary>Can I route clients to different VPN servers?</summary>
-    Yes you can. Simply make a separate directory for each VPN server, and give them each a vpn.conf file with the clients you wish to force through them. Make sure the options ROUTE_TABLE, MARK, PREFIX, PREF, and DEV are unique for each vpn.conf file so the different VPN servers don't share the same tunnel device, route table, or fwmark.
-   
-   Afterwards, modify your run script like so (in this example, we are using Mullvad and NordVPN). Note that you need to cd into the correct directory for each different VPN server before running the openvpn command so that the correct config file is used for each and a unique TUN device is passed to openvpn.
-
+  
+  * Yes you can. Simply make a separate directory for each VPN server, and give them each a vpn.conf file with the clients you wish to force through them. Make sure the options `ROUTE_TABLE`, `MARK`, `PREFIX`, `PREF`, and `DEV` are unique for each `vpn.conf` file so the different VPN servers don't share the same tunnel device, route table, or fwmark. 
+  
+  * Afterwards, modify your run script like so (in this example, we are using Mullvad and NordVPN). Note that you need to cd into the correct directory for each different VPN server before running the openvpn command so that the correct config file is used for each and a unique TUN device is passed to openvpn.
+  
+    ```sh
     #!/bin/sh
 
     # Load configuartion for mullvad and run openvpn
@@ -152,110 +168,143 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
                   --dev-type tun --dev ${DEV} \
                   --ping-restart 15 \
                   --mute-replay-warnings > openvpn.log &
+    ```
 
 </details>
 
 <details>
   <summary>How do I safely shutdown the VPN?</summary>
-  Simply send the openvpn process the TERM signal. Killswitch and iptables rules will only be removed if the option REMOVE_KILLSWITCH_ON_EXIT is set to 1.
   
-  1. If you want to kill all openvpn instances.
-    
-    killall -TERM openvpn
+  * Simply send the openvpn process the TERM signal. Killswitch and iptables rules will only be removed if the option `REMOVE_KILLSWITCH_ON_EXIT` is set to 1.
   
-  2. If you want to kill a specific openvpn instance using tun0.
-    
-    kill -TERM $(pgrep -f "openvpn.*tun0")
+    1. If you want to kill all openvpn instances.
+
+        ```sh
+        killall -TERM openvpn
+        ```
+
+    2. If you want to kill a specific openvpn instance using tun0.
+
+        ```sh
+        kill -TERM $(pgrep -f "openvpn.*tun0")
+        ```
   
 </details>
 
 <details>
   <summary>How do I check port forwarding on the VPN side is working?</summary>
-  Use a port checking tool (like https://websistent.com/tools/open-port-check-tool/) and enter your VPN IP and VPN port number to test. Check both IPv6 and IPv4 if using. Alternatively, you can run the following command on your client which tells your IP and if the port is open. Make sure you are not seeing your real IP here and that the status for the port is reachable. Replace 21674 with your VPN port number. 
   
+  * Use a port checking tool (like https://websistent.com/tools/open-port-check-tool/) and enter your VPN IP and VPN port number to test. Check both IPv6 and IPv4 if using both. 
+  * Alternatively, you can run the following command on your client which tells your IP and if the port is open. Make sure you are not seeing your real IP here and that the status for the port is reachable. Replace 21674 with your VPN port number. 
+  
+    ```sh
      curl -4 https://am.i.mullvad.net/port/21674
      curl -6 https://am.i.mullvad.net/port/21674
+     ```
      
 </details>
 
 <details>
   <summary>Why I am seeing my real IPv6 address when checking my IP on the Internet?</summary>
-  You shouldn't be seeing your real IPv6 address anywhere if you forced your clients over IPv6, even if your VPN doesn't support IPv6. Make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface (FORCED_SOURCE_INTERFACE), MAC address (FORCED_SOURCE_MAC), or the IPv6 directly (FORCED_SOURCE_IPV6). If IPv6 is not supported by your VPN provider, IPv6 traffic should time out or be refused. For additional security if your VPN provider doesn't support IPv6, it is recommended to set the DNS_IPV6_IP option to "REJECT", or disable IPv6 for that network in the UDMP settings, so that IPv6 DNS leaks do not occur.
+  
+  * You shouldn't be seeing your real IPv6 address anywhere if you forced your clients over IPv6, even if your VPN doesn't support IPv6. Make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface (`FORCED_SOURCE_INTERFACE`), MAC address (`FORCED_SOURCE_MAC`), or the IPv6 directly (`FORCED_SOURCE_IPV6`). 
+  
+  * If IPv6 is not supported by your VPN provider, IPv6 traffic should time out or be refused. For additional security if your VPN provider doesn't support IPv6, it is recommended to set the `DNS_IPV6_IP` option to "REJECT", or disable IPv6 for that network in the UDMP settings, so that IPv6 DNS leaks do not occur.
      
 </details>
 
 <details>
   <summary>Why am I seeing my real IPv6 address when doing a WebRTC test?</summary>
-  WebRTC is a protocol that allows browsers to get your local and global IPs via JavaScript. WebRTC cannot be completely disabled at the network level because some browsers check the network interface directly to see what IP to return. Since IPv6 has global IPs directly assigned to the network interface, your non-VPN global IPv6 can be directly seen by the browser and leaked to WebRTC JavaScript calls. To solve this, you can do one of the following.
-
-  * Disable WebRTC in the browser (not all browsers allow you to).
-  * Disable JavaScript completely. 
-  * Disable IPv6 completely either directly on the client (if you can), or by using the UDMP's network settings to turn off IPv6 for the client's VLAN.
+  
+  * WebRTC is a protocol that allows browsers to get your local and global IPs via JavaScript. WebRTC cannot be completely disabled at the network level because some browsers check the network interface directly to see what IP to return. Since IPv6 has global IPs directly assigned to the network interface, your non-VPN global IPv6 can be directly seen by the browser and leaked to WebRTC JavaScript calls. To solve this, you can do one of the following.
+  
+    * Disable WebRTC in the browser (not all browsers allow you to).
+    * Disable JavaScript completely.
+    * Disable IPv6 completely either directly on the client (if you can), or by using the UDMP's network settings to turn off IPv6 for the client's VLAN.
   
 </details>
 
 <details>
-  <summary>My VPN provdider doesn't support IPv6. Why do my forced clients have a delay in communicating to the Internet?</summary>
-  If your VPN provider doesn't support IPv6 but you have IPv6 enabled on the network, clients will attempt to communicate over IPv6 first then fallback to IPv4 when the connection fails, since IPv6 is not supported on the VPN. To avoid this delay, it is recommended to disable IPv6 for that network/VLAN in the UDMP settings, or on the client directly. This ensures that the clients only use IPv4 and don't have to wait for IPv6 to time out first.
+  <summary>My VPN provider doesn't support IPv6. Why do my forced clients have a delay in communicating to the Internet?</summary>
+  
+  * If your VPN provider doesn't support IPv6 but you have IPv6 enabled on the network, clients will attempt to communicate over IPv6 first then fallback to IPv4 when the connection fails, since IPv6 is not supported on the VPN. 
+  
+  * To avoid this delay, it is recommended to disable IPv6 for that network/VLAN in the UDMP settings, or on the client directly. This ensures that the clients only use IPv4 and don't have to wait for IPv6 to time out first.
      
 </details>
 
 <details>
   <summary>Does the VPN still work when my IP changes because of lease renewals or other disconnect reasons?</summary>
-    Yes, as long as you add the "--ping-restart X" option to the openvpn command line when you run it. This ensures that if there is a network disconnect for any reason, the OpenVPN client will restart and try to re-configure itself after X seconds until it connects again. The killswitch will still be active during the restart to block non-VPN traffic as long as you set REMOVE_KILLSWITCH_ON_EXIT=0 in the config.
+    
+  * Yes, as long as you add the `--ping-restart X` option to the openvpn command line when you run it. This ensures that if there is a network disconnect for any reason, the OpenVPN client will restart and try to re-configure itself after X seconds until it connects again. 
+  
+  * The killswitch will still be active during the restart to block non-VPN traffic as long as you set `REMOVE_KILLSWITCH_ON_EXIT=0` in the config.
   
 </details>
 
 <details>
   <summary>The VPN exited or crashed and now I can't access the Internet on my devices. What do I do?</summary>
-  When the VPN process crashes, there is no cleanup done for the iptable rules and the killswitch is still active. This is also the case for a clean exit when you set the option REMOVE_KILLSWITCH_ON_EXIT=0. This is a safety feature so that there are no leaks if the VPN crashes.
   
-  1. If you don't want to delete the killswitch and leak your real IP, re-run the openvpn run script or command to bring the VPN back up again.
+  * When the VPN process crashes, there is no cleanup done for the iptable rules and the killswitch is still active. This is also the case for a clean exit when you set the option `REMOVE_KILLSWITCH_ON_EXIT=0`. This is a safety feature so that there are no leaks if the VPN crashes. To recover the connection, do either of the following:
+  
+    * If you don't want to delete the killswitch and leak your real IP, re-run the openvpn run script or command to bring the VPN back up again.
 
-  2. If you want to delete the killswitch so your forced clients can access your default network again instead of go through the VPN, run the following command (replace tun0 with the device you defined in the config file) after changing to the directory with the vpn.conf file. 
+    * If you want to delete the killswitch so your forced clients can access your default network again instead of go through the VPN, run the following command (replace tun0 with the device you defined in the config file) after changing to the directory with the vpn.conf file. 
     
-    cd /mnt/data/openvpn/nordvpn
-    /mnt/data/openvpn/updown.sh tun0 force-down
+        ```sh
+        cd /mnt/data/openvpn/nordvpn
+        /mnt/data/openvpn/updown.sh tun0 force-down
+        ```
       
 </details>
 
 <details>
   <summary>What does this really do to my UDMP?</summary>
-  This script only does the following.
   
-  1. Adds custom iptable chains and rules to the mangle, nat, and filter tables. You can see them with the following commands (assuming you set PREFIX=VPN_).
+  * This script only does the following.
   
-    iptables -t mangle -S | grep VPN
-    iptables -t nat -S | grep VPN
-    iptables -t filter -S | grep VPN
-    ip6tables -t mangle -S | grep VPN
-    ip6tables -t nat -S | grep VPN
-    ip6tables -t filter -S | grep VPN
-    
-  2. Adds VPN routes to custom routing tables that can be seen with the following command (assuming you set ROUTE_TABLE=101).
-  
-    ip route show table 101
-    ip -6 route show table 101
-  
-  2. Adds policy-based routes to redirect marked traffic to the custom tables. You can see them with the following command (look for the fwmark you defined in your config or 0x9 if using default).
-  
-    ip rule
-    ip -6 rule
-    
-  4. Stays running in the background to monitor the policy-based routes every second for any deletions caused by the UDMP operating system, and re-adds them if deleted. The UDMP removes the custom policy-based routes when the WAN IP changes. You can see the script running with:
-  
-    ps | grep updown.sh
-    
-  5. Writes logs to openvpn.log and rule-watcher.log in each VPN server's directory. Logs are overwritten at every run.
+    1. Adds custom iptable chains and rules to the mangle, nat, and filter tables. You can see them with the following commands (assuming you set `PREFIX=VPN_`).
+
+        ```sh
+        iptables -t mangle -S | grep VPN
+        iptables -t nat -S | grep VPN
+        iptables -t filter -S | grep VPN
+        ip6tables -t mangle -S | grep VPN
+        ip6tables -t nat -S | grep VPN
+        ip6tables -t filter -S | grep VPN
+        ```
+
+    2. Adds VPN routes to custom routing tables that can be seen with the following command (assuming you set `ROUTE_TABLE=101`).
+
+        ```sh
+        ip route show table 101
+        ip -6 route show table 101
+        ```
+
+    2. Adds policy-based routes to redirect marked traffic to the custom tables. You can see them with the following command (look for the fwmark you defined in your config or 0x9 if using default).
+
+        ```sh
+        ip rule
+        ip -6 rule
+        ```
+
+    4. Stays running in the background to monitor the policy-based routes every second for any deletions caused by the UDMP operating system, and re-adds them if deleted. The UDMP removes the custom policy-based routes when the WAN IP changes. You can see the script running with:
+
+        ```sh
+        ps | grep updown.sh
+        ```
+
+    5. Writes logs to `openvpn.log` and `rule-watcher.log` in each VPN server's directory. Logs are overwritten at every run.
       
 </details>
 
 <details>
   <summary>Something went wrong. How can I debug?</summary>
-
-  1. First check the openvpn.log file in the VPN server's directory for any errors.
-  2. Check that the iptable rules, policy-based routes, and custom table routes agree with your configuration. See the previous question for how to look this up. 
-  3. Post a bug report if you encounter any reproducible issues. 
+  
+  1. First check the openvpn.log file in the VPN server's directory for any errors. 
+  2. Check that the iptable rules, policy-based routes, and custom table routes agree with your configuration. See the previous question for how to look this up.
+  3. If you want to see which line the scripts failed on, open the `updown.sh` and `add-vpn-iptables-rules.sh` scripts and replace the `set -e` line at the top with `set -xe` then rerun the VPN. The `-x` flag tells the shell to print every line before it executes it. 
+  4. Post a bug report if you encounter any reproducible issues. 
   
 </details>
 
@@ -268,7 +317,7 @@ Remember to modify the `cd` line and the `--config` openvpn option to point to y
     <summary>FORCED_SOURCE_INTERFACE</summary>
       Force all traffic coming from a source interface through the VPN. 
       Default LAN is br0, and other LANs are brX, where X = VLAN number.
-  
+
       Format: [INTERFACE NAME]
       Example: FORCED_SOURCE_INTERFACE="br6 br8"
 
