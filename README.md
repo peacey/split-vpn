@@ -218,10 +218,10 @@ This script runs with the Bourne Shell interpreter (sh) on the base OS of the UD
 <details>
   <summary>Why am I seeing my real IPv6 address when doing a WebRTC test?</summary>
   
-  * WebRTC is a protocol that allows browsers to get your local and global IPs via JavaScript. WebRTC cannot be completely disabled at the network level because some browsers check the network interface directly to see what IP to return. Since IPv6 has global IPs directly assigned to the network interface, your non-VPN global IPv6 can be directly seen by the browser and leaked to WebRTC JavaScript calls. To solve this, you can do one of the following.
+  * WebRTC is an audio/video protocol that allows browsers to get your IPs via JavaScript. WebRTC cannot be completely disabled at the network level because some browsers check the network interface directly to see what IP to return. Since IPv6 has global IPs directly assigned to the network interface, your non-VPN global IPv6 can be directly seen by the browser and leaked to WebRTC JavaScript calls. To solve this, you can do one of the following.
   
-    * Disable WebRTC in the browser (not all browsers allow you to).
-    * Disable JavaScript completely.
+    * Disable WebRTC on your browser (not all browsers allow you to). Use a browser like Firefox that allows you to disable WebRTC.
+    * Disable JavaScript completely on your browser (which will break most sites).
     * Disable IPv6 completely either directly on the client (if you can), or by using the UDMP's network settings to turn off IPv6 for the client's VLAN.
   
 </details>
