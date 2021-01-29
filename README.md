@@ -113,7 +113,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     # Load configuration and run openvpn
     cd /mnt/data/openvpn/nordvpn
     source ./vpn.conf
-    /mnt/data/openvpn/add-vpn-iptables-rules.sh up ${DEV}
+    /mnt/data/openvpn/updown.sh ${DEV} pre-up &> pre-up.log
     nohup openvpn --config nordvpn.ovpn \
                   --route-noexec \
                   --up /mnt/data/openvpn/updown.sh \
@@ -121,15 +121,29 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
                   --dev-type tun --dev ${DEV} \
                   --script-security 2 \
                   --ping-restart 15 \
-                  --mute-replay-warnings > openvpn.log &
+                  --mute-replay-warnings &> openvpn.log &
     ```
 
-    Remember to modify the `cd` line and the `--config` openvpn option to point to your config. Comment out the `add-vpn-iptables-rules.sh` line if you want the iptables kill switch to not be activated until after the VPN connects.
+    Remember to modify the `cd` line and the `--config` openvpn option to point to your config. Comment out the `updown.sh` line if you want the iptables kill switch to not be activated until after the VPN connects (not recommended).
 
 3. Run `chmod +x /mnt/data/on_boot.d/run-vpn.sh` to give the script execute permissions. 
 4. That's it. Now the VPN will start at every boot. 
-5. Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN and might leak their real IP, because the kill switch has not been activated yet. After the script runs, forced clients will not be able to access your WAN even if openvpn crashes or restarts (see the [REMOVE_KILLSWITCH_ON_EXIT](#configuration-variables) option below).
+5. Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN and might leak their real IP, because the kill switch has not been activated yet. Read step 6 to see how to solve this problem and block Internet access until after this script runs. After the script runs, forced clients will not be able to access your WAN even if openvpn crashes or restarts (see the [REMOVE_KILLSWITCH_ON_EXIT](#configuration-variables) option below).
+6. **OPTIONAL:** If you want to ensure that there is no Internet access BEFORE this script runs at boot, you can add blackhole static routes in the Unifi Settings that will block all Internet access until they are removed by this script. The blackhole routes will be removed when this script starts to restore Internet access only after the killswitch has been activated. If you want to do this for maximum protection at boot up, follow these instructions:
 
+    a. Go to your Unifi Network Settings, and add the following static routes. If you're using the New Settings, this is under Advanced Features -> Advanced Gateway Settings -> Static Routes. For Old Settings, this is under Settings -> Routing and Firewall -> Static Routes. Add these routes which cover all IP ranges:
+    
+      1. **Name:** VPN Blackhole. **Destination:** 0.0.0.0/1. **Static Route Type:** Black Hole. **Enabled.**
+      2. **Name:** VPN Blackhole. **Destination:** 128.0.0.0/1. **Static Route Type:** Black Hole. **Enabled.**
+      3. **Name:** VPN Blackhole. **Destination:** ::/1. **Static Route Type:** Black Hole. **Enabled.**
+      4. **Name:** VPN Blackhole. **Destination:** 8000::/1. **Static Route Type:** Black Hole. **Enabled.**
+      
+    b. In your vpn.conf, set the option `REMOVE_STARTUP_BLACKHOLES=1`. This is required or else the script will not delete the blackhole routes at startup, and you will not have Internet access on ANY client, not just the VPN-forced clients until you delete the blackhole routes manually or disable them in the Unifi Settings.
+    
+    c. In your run script above, make sure you did NOT comment out the `updown.sh pre-up` line. That is the line that removed the blackhole routes at startup.
+    
+    d. Note that once you do this, you will lose Internet access for ALL clients until you run the VPN run script above. The script stays running in the background to monitor if the the blackhole routes are added by the system again (which happens when your IP changes or when settings are changed). The blackhole routes will be deleted immediately when they're added.
+  
 </details>
 
 ## FAQ
@@ -146,7 +160,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     # Load configuration for mullvad and run openvpn
     cd /mnt/data/openvpn/mullvad
     source ./vpn.conf
-    /mnt/data/openvpn/add-vpn-iptables-rules.sh up ${DEV}
+    /mnt/data/openvpn/updown.sh ${DEV} pre-up &> pre-up.log
     nohup openvpn --config mullvad.conf \
                   --route-noexec \
                   --up /mnt/data/openvpn/updown.sh \
@@ -159,7 +173,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     # Load configuration for nordvpn and run openvpn
     cd /mnt/data/openvpn/nordvpn
     source ./vpn.conf
-    /mnt/data/openvpn/add-vpn-iptables-rules.sh up ${DEV}
+    /mnt/data/openvpn/updown.sh ${DEV} pre-up &> pre-up.log
     nohup openvpn --config nordvpn.ovpn \
                   --route-noexec \
                   --up /mnt/data/openvpn/updown.sh \
@@ -510,6 +524,18 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
   
       Format: 0 or 1
       Example: REMOVE_KILLSWITCH_ON_EXIT=0
+
+  </details>
+  
+  <details>
+    <summary>REMOVE_STARTUP_BLACKHOLES</summary>
+    Enable this if you added blackhole routes in the Unifi Settings to prevent Internet access at system startup before the VPN script runs. 
+    This option removes the blackhole routes to restore Internet access after the killswitch has been enabled.               
+    If you do not set this to 1, openvpn will not be able to connect at startup, and your Internet access will never be enabled until you manually remove the blackhole routes. 
+    Set this to 0 only if you did not add any blackhole routes in Step 6 of the boot script instructions above.                         
+  
+      Format: 0 or 1
+      Example: REMOVE_STARTUP_BLACKHOLES=1
 
   </details>
   
