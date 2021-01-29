@@ -9,7 +9,7 @@ set -e
 
 # Kill the rule watcher (previously running up/down script for the tunnel device).
 kill_rule_watcher() {
-	for p in $(pgrep -f "$(basename "$0") ${dev}"); do
+	for p in $(pgrep -f "/bin/sh.*$(basename "$0") ${dev}"); do
 		if [ $p != $$ ]; then
 			kill -9 $p
 		fi
@@ -27,7 +27,13 @@ run_rule_watcher() {
 			(ip rule add $ip_rule && echo "[$(date)] Readded IPv4 rule.")
 		ip -6 rule show fwmark ${MARK} | grep ${MARK} &> /dev/null || 
 			(ip -6 rule add $ip_rule && echo "[$(date)] Readded IPv6 rule.")
-		sleep 1
+		if [ "${REMOVE_STARTUP_BLACKHOLES}" = 1 ]; then
+			for route in "${startup_blackholes}"; do
+				ip route del blackhole "$route" &> /dev/null &&
+					echo "[$(date)] Removed blackhole ${route}."
+			done
+		fi
+ 		sleep 1
 	done) > rule-watcher.log &
 }
 
@@ -129,6 +135,9 @@ iptables_script="$(dirname "$0")/add-vpn-iptables-rules.sh"
 # Construct the ip rule.
 ip_rule="fwmark ${MARK} lookup ${ROUTE_TABLE} pref ${PREF}"
 
+# Startup blackholes to remove
+startup_blackholes="0.0.0.0/1 128.0.0.0/1 ::/1 8000::/1"
+
 # When OpenVPN calls this script, script_type is either up or down.
 # This script might also be manually called with force-down to force shutdown 
 # regardless of KILLSWITCH settings.
@@ -136,15 +145,20 @@ if [[ "$2" = "force-down" ]]; then
 	kill_rule_watcher
 	delete_all_routes
 	sh ${iptables_script} force-down $1
+	echo "Forced ${DEV} down. Deleted killswitch and rules."
+elif [[ "$2" = "pre-up" ]]; then
+	add_blackhole_routes
+	sh ${iptables_script} up ${dev}
+	run_rule_watcher
 elif [[ "${script_type}" = "up" ]]; then
 	add_blackhole_routes
 	add_vpn_routes
-	run_rule_watcher
 	sh ${iptables_script} up ${dev}
+	run_rule_watcher
 else
    	delete_vpn_routes
 	# Only delete the rules if option is set.
-	if [ ${REMOVE_KILLSWITCH_ON_EXIT} = 1 ]; then
+	if [ "${REMOVE_KILLSWITCH_ON_EXIT}" = 1 ]; then
 		# Kill the rule checking daemon.
 		kill_rule_watcher
 		delete_all_routes

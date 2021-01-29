@@ -57,6 +57,14 @@ KILLSWITCH=1
 # when the vpn client restarts or exits.
 REMOVE_KILLSWITCH_ON_EXIT=0
 
+# Enable this if you added blackhole routes in the Unifi Settings to prevent Internet
+# access at system startup before the VPN script runs. This option removes the blackhole 
+# routes to restore Internet access after the killswitch has been enabled. 
+# If you do not set this to 1, openvpn will not be able to connect at startup, and your 
+# Internet access will never be enabled until you manually remove the blackhole routes. 
+# Set this to 0 only if you did not add any blackhole routes.
+REMOVE_STARTUP_BLACKHOLES=1
+
 # Options for custom table and chains.
 # These options need to be unique for each instance of openvpn if running multiple.
 ROUTE_TABLE=101

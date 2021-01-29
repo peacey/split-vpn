@@ -230,13 +230,13 @@ fi
 
 # When this script is called from updown.sh, first argument is either up or down.
 if [[ "$1" = "up" ]]; then
-	if [ ${KILLSWITCH} = 1 ]; then
+	if [ "${KILLSWITCH}" = 1 ]; then
 		add_killswitch
 	fi
 	create_chains
 	add_iptables_rules
 elif [[ "$1" = "down" ]]; then
-	if [ ${REMOVE_KILLSWITCH_ON_EXIT} = 1 ]; then
+	if [ "${REMOVE_KILLSWITCH_ON_EXIT}" = 1 ]; then
 		delete_chains
 		delete_killswitch
 	fi
