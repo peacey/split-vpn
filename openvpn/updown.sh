@@ -28,7 +28,7 @@ run_rule_watcher() {
 		ip -6 rule show fwmark ${MARK} | grep ${MARK} &> /dev/null || 
 			(ip -6 rule add $ip_rule && echo "[$(date)] Readded IPv6 rule.")
 		if [ "${REMOVE_STARTUP_BLACKHOLES}" = 1 ]; then
-			for route in "${startup_blackholes}"; do
+			for route in ${startup_blackholes}; do
 				ip route del blackhole "$route" &> /dev/null &&
 					echo "[$(date)] Removed blackhole ${route}."
 			done
