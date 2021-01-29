@@ -138,11 +138,11 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
       3. **Name:** VPN Blackhole. **Destination:** ::/1. **Static Route Type:** Black Hole. **Enabled.**
       4. **Name:** VPN Blackhole. **Destination:** 8000::/1. **Static Route Type:** Black Hole. **Enabled.**
       
-    b. In your vpn.conf, set the option `REMOVE_STARTUP_BLACKHOLES=1`. This is required or else the script will not delete the blackhole routes at startup, and you will not have Internet access on ANY client, not just the VPN-forced clients until you delete the blackhole routes manually or disable them in the Unifi Settings.
+    b. In your vpn.conf, set the option `REMOVE_STARTUP_BLACKHOLES=1`. This is required or else the script will not delete the blackhole routes at startup, and you will not have Internet access on ANY client, not just the VPN-forced clients, until you delete the blackhole routes manually or disable them in the Unifi Settings.
     
-    c. In your run script above, make sure you did NOT comment out the `updown.sh pre-up` line. That is the line that removed the blackhole routes at startup.
+    c. In your run script above, make sure you did NOT comment out the `updown.sh pre-up` line. That is the line that removes the blackhole routes at startup.
     
-    d. Note that once you do this, you will lose Internet access for ALL clients until you run the VPN run script above. The script stays running in the background to monitor if the the blackhole routes are added by the system again (which happens when your IP changes or when settings are changed). The blackhole routes will be deleted immediately when they're added.
+    d. Note that once you do this, you will lose Internet access for ALL clients until you run the VPN run script above, or were running it before with the `REMOVE_STARTUP_BLACKHOLES=1` option. The script stays running in the background to monitor if the the blackhole routes are added by the system again (which happens when your IP changes or when route settings are changed). The blackhole routes will be deleted immediately when they're added by the system. 
   
 </details>
 
@@ -202,7 +202,27 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
         ```sh
         kill -TERM $(pgrep -f "openvpn.*tun0")
         ```
+        
+    3. If you set `REMOVE_KILLSWITCH_ON_EXIT=0` and want to recover your Internet access, please read the next question. 
   
+</details>
+
+<details>
+  <summary>The VPN exited or crashed and now I can't access the Internet on my devices. What do I do?</summary>
+  
+  * When the VPN process crashes, there is no cleanup done for the iptable rules and the killswitch is still active. This is also the case for a clean exit when you set the option `REMOVE_KILLSWITCH_ON_EXIT=0`. This is a safety feature so that there are no leaks if the VPN crashes. To recover the connection, do the following:
+  
+    * If you don't want to delete the killswitch and leak your real IP, re-run the openvpn run script or command to bring the VPN back up again.
+
+    * If you want to delete the killswitch so your forced clients can access your default network again instead of go through the VPN, run the following command (replace tun0 with the device you defined in the config file) after changing to the directory with the vpn.conf file. 
+    
+        ```sh
+        cd /mnt/data/openvpn/nordvpn
+        /mnt/data/openvpn/updown.sh tun0 force-down
+        ```
+        
+    * If you added blackhole routes and deleted the killswitch in the previous step, make sure to disable the blackhole routes in the Unifi Settings or you might suddenly lose Internet access when the blackhole routes are re-added by the system.
+      
 </details>
 
 <details>
@@ -254,22 +274,6 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
   
   * The killswitch will still be active during the restart to block non-VPN traffic as long as you set `REMOVE_KILLSWITCH_ON_EXIT=0` in the config.
   
-</details>
-
-<details>
-  <summary>The VPN exited or crashed and now I can't access the Internet on my devices. What do I do?</summary>
-  
-  * When the VPN process crashes, there is no cleanup done for the iptable rules and the killswitch is still active. This is also the case for a clean exit when you set the option `REMOVE_KILLSWITCH_ON_EXIT=0`. This is a safety feature so that there are no leaks if the VPN crashes. To recover the connection, do either of the following:
-  
-    * If you don't want to delete the killswitch and leak your real IP, re-run the openvpn run script or command to bring the VPN back up again.
-
-    * If you want to delete the killswitch so your forced clients can access your default network again instead of go through the VPN, run the following command (replace tun0 with the device you defined in the config file) after changing to the directory with the vpn.conf file. 
-    
-        ```sh
-        cd /mnt/data/openvpn/nordvpn
-        /mnt/data/openvpn/updown.sh tun0 force-down
-        ```
-      
 </details>
 
 <details>
