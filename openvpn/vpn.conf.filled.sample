@@ -15,10 +15,11 @@ EXEMPT_SOURCE_IPV4="192.168.1.2/32"
 EXEMPT_SOURCE_IPV6="fd00::2/128 2001:100a:d666:1a22::80/128"
 EXEMPT_SOURCE_MAC="00:ad:23:10:0a:30"
 
-# Format: [tcp/udp/both]-[IP Source]-[port1,port2:port3,port4,...]
+# Format: [tcp/udp/both]-[IP/MAC Source]-[port1,port2:port3,port4,...]
 # Maximum 15 ports per entry.
 EXEMPT_SOURCE_IPV4_PORT="tcp-192.168.1.1-22,32400,80:90,443,55555"
 EXEMPT_SOURCE_IPV6_PORT="tcp-2001:100a:d666:1a22::69-22,32400,80:90,443,55555"
+EXEMPT_SOURCE_MAC_PORT="both-00:ad:23:10:0a:30-22,32400,80,443,55555"
 
 # Exempt these destinations from the VPN. 
 # Format: [IP/nn]

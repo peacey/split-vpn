@@ -129,6 +129,19 @@ add_iptables_rules() {
 		fi
 	done
 
+        # Exempt source MAC:PORT from VPN
+        for entry in ${EXEMPT_SOURCE_MAC_PORT}; do
+                proto=$(echo "$entry" | cut -d'-' -f1)
+                source_mac=$(echo "$entry" | cut -d'-' -f2)
+                sports=$(echo "$entry" | cut -d'-' -f3)
+                if [[ "$proto" = "both" ]]; then
+                        add_rule both mangle "PREROUTING -p tcp -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+                        add_rule both mangle "PREROUTING -p udp -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+                else
+                        add_rule both mangle "PREROUTING -p ${proto} -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+                fi
+        done
+	
 	# Exempt IPv4/IPv6 destinations from VPN
 	for dest in ${EXEMPT_DESTINATIONS_IPV4}; do
 		add_rule IPV4 mangle "PREROUTING ! -i ${dev} -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
