@@ -8,7 +8,7 @@ This is a helper script for the OpenVPN client on the UDMP that creates a split 
 ## Features
 
 * Force traffic to the VPN based on source interface (VLAN), MAC address, or IP address.
-* Exempt sources from the VPN based on IP, MAC address, or IP:port combination. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN, or specific services on forced clients, to exclude from the VPN.
+* Exempt sources from the VPN based on IP, MAC address, IP:port, or MAC:port combination. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN, or specific services on forced clients, to exclude from the VPN.
 * Exempt destinations from the VPN by IP. This allows VPN-forced clients to communicate with the LAN or other VLANs.
 * Port forwarding on the VPN side to local clients (not all VPN providers give you ports).
 * Redirect DNS for VPN traffic to either an upstream DNS server or a local server like pihole, or block DNS requests completely.
@@ -129,7 +129,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
 3. Run `chmod +x /mnt/data/on_boot.d/run-vpn.sh` to give the script execute permissions. 
 4. That's it. Now the VPN will start at every boot. 
 5. Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN and might leak their real IP, because the kill switch has not been activated yet. Read step 6 to see how to solve this problem and block Internet access until after this script runs. After the script runs, forced clients will not be able to access your WAN even if openvpn crashes or restarts (see the [REMOVE_KILLSWITCH_ON_EXIT](#configuration-variables) option below).
-6. **OPTIONAL:** If you want to ensure that there is no Internet access BEFORE this script runs at boot, you can add blackhole static routes in the Unifi Settings that will block all Internet access until they are removed by this script. The blackhole routes will be removed when this script starts to restore Internet access only after the killswitch has been activated. If you want to do this for maximum protection at boot up, follow these instructions:
+6. **OPTIONAL:** If you want to ensure that there is no Internet access BEFORE this script runs at boot, you can add blackhole static routes in the Unifi Settings that will block all Internet access (incluing non-VPN Internet) until they are removed by this script. The blackhole routes will be removed when this script starts to restore Internet access only after the killswitch has been activated. If you want to do this for maximum protection at boot up, follow these instructions:
 
     a. Go to your Unifi Network Settings, and add the following static routes. If you're using the New Settings, this is under Advanced Features -> Advanced Gateway Settings -> Static Routes. For Old Settings, this is under Settings -> Routing and Firewall -> Static Routes. Add these routes which cover all IP ranges:
     
@@ -142,7 +142,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     
     c. In your run script above, make sure you did NOT comment out the `updown.sh pre-up` line. That is the line that removes the blackhole routes at startup.
     
-    d. Note that once you do this, you will lose Internet access for ALL clients until you run the VPN run script above, or were running it before with the `REMOVE_STARTUP_BLACKHOLES=1` option. The script stays running in the background to monitor if the the blackhole routes are added by the system again (which happens when your IP changes or when route settings are changed). The blackhole routes will be deleted immediately when they're added by the system. 
+    d. **Note that once you do this, you will lose Internet access for ALL clients until you run the VPN run script above**, or were running it before with the `REMOVE_STARTUP_BLACKHOLES=1` option. The script stays running in the background to monitor if the the blackhole routes are added by the system again (which happens when your IP changes or when route settings are changed). The blackhole routes will be deleted immediately when they're added by the system. 
   
 </details>
 
@@ -420,6 +420,18 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
       Example: EXEMPT_SOURCE_IPV6_PORT="tcp-fd00::69-22,32400,80:90,443 both-fd00::2-53"
 
   </details> 
+  
+  <details>
+    <summary>EXEMPT_SOURCE_MAC_PORT</summary>
+      Exempt a MAC:Port source from the VPN. This allows you to create exceptions on a port basis, so you can selectively choose which services on a client to tunnel through the VPN and which to tunnel through the default LAN/WAN. 
+ 
+      A single entry can have up to 15 multiple ports by separating the ports with commas. 
+      Ranges of ports can be defined with a colon like 5000:6000, and take up two ports in the entry. 
+      Protocal can be tcp, udp or both. 
+      Format: [tcp/udp/both]-[MAC Source]-[port1,port2:port3,port4,...]
+      Example: EXEMPT_SOURCE_MAC_PORT="both-30:08:d7:aa:bb:cc-22,32400,80:90,443"
+
+  </details>
   
   <details>
     <summary>EXEMPT_DESTINATIONS_IPV4</summary>
