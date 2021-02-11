@@ -52,11 +52,11 @@ DNS_IPV6_PORT=53
 DNS_IPV6_INTERFACE=""
 
 # Enabling kill switch drops VPN-destined traffic that doesn't go through the VPN.
-KILLSWITCH=1
+KILLSWITCH=0
 
 # Enable this only if you are testing or you don't care about your real IP leaking
 # when the vpn client restarts or exits.
-REMOVE_KILLSWITCH_ON_EXIT=0
+REMOVE_KILLSWITCH_ON_EXIT=1
 
 # Enable this if you added blackhole routes in the Unifi Settings to prevent Internet
 # access at system startup before the VPN script runs. This option removes the blackhole 
