@@ -1,5 +1,5 @@
 # split-vpn
-A split tunnel VPN script for the UDM/P.
+A split tunnel VPN script for the UDM Pro with policy based routing.
 
 ## What is this?
 
