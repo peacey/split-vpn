@@ -190,7 +190,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
 <details>
   <summary>How do I safely shutdown the VPN?</summary>
   
-  * Simply send the openvpn process the TERM signal. Killswitch and iptables rules will only be removed if the option `REMOVE_KILLSWITCH_ON_EXIT` is set to 1.
+  * Simply send the openvpn process the TERM signal. Kill switch and iptables rules will only be removed if the option `REMOVE_KILLSWITCH_ON_EXIT` is set to 1.
   
     1. If you want to kill all openvpn instances.
 
@@ -211,31 +211,31 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
 <details>
   <summary>The VPN exited or crashed and now I can't access the Internet on my devices. What do I do?</summary>
   
-  * When the VPN process crashes, there is no cleanup done for the iptable rules and the killswitch is still active. This is also the case for a clean exit when you set the option `REMOVE_KILLSWITCH_ON_EXIT=0`. This is a safety feature so that there are no leaks if the VPN crashes. To recover the connection, do the following:
+  * When the VPN process crashes, there is no cleanup done for the iptables rules and the kill switch is still active (if the kill switch is enabled). This is also the case for a clean exit when you set the option `REMOVE_KILLSWITCH_ON_EXIT=0`. This is a safety feature so that there are no leaks if the VPN crashes. To recover the connection, do the following:
   
-    * If you don't want to delete the killswitch and leak your real IP, re-run the openvpn run script or command to bring the VPN back up again.
+    * If you don't want to delete the kill switch and leak your real IP, re-run the openvpn run script or command to bring the VPN back up again.
 
-    * If you want to delete the killswitch so your forced clients can access your default network again instead of go through the VPN, run the following command (replace tun0 with the device you defined in the config file) after changing to the directory with the vpn.conf file. 
+    * If you want to delete the kill switch so your forced clients can access your default network again instead of go through the VPN, run the following command (replace tun0 with the device you defined in the config file) after changing to the directory with the vpn.conf file. 
     
         ```sh
         cd /mnt/data/openvpn/nordvpn
         /mnt/data/openvpn/updown.sh tun0 force-down
         ```
         
-    * If you added blackhole routes and deleted the killswitch in the previous step, make sure to disable the blackhole routes in the Unifi Settings or you might suddenly lose Internet access when the blackhole routes are re-added by the system.
+    * If you added blackhole routes and deleted the kill switch in the previous step, make sure to disable the blackhole routes in the Unifi Settings or you might suddenly lose Internet access when the blackhole routes are re-added by the system.
       
 </details>
 
 <details>
-  <summary>How do I enable or disable the killswitch and what does it do?</summary>
+  <summary>How do I enable or disable the kill switch and what does it do?</summary>
   
-  The killswitch disables Internet access for VPN-forced clients if the VPN crashes or exits. This is good for when you do not want to leak your real IP if the VPN crashes or exits prematurely. Follow the instructions below to enable or disable the killswitch.
+  * The kill switch disables Internet access for VPN-forced clients if the VPN crashes or exits. This is good for when you do not want to leak your real IP if the VPN crashes or exits prematurely. Follow the instructions below to enable or disable the kill switch.
   
-  1. To enable the kill switch, set `KILLSWITCH=1` in the `vpn.conf` file. If you want the killswitch to remain even when you exit OpenVPN cleanly (not just when it crashes), then set `REMOVE_KILLSWITCH_ON_EXIT=0` as well. 
-  
-  2. To disable the kill switch, set `KILLSWITCH=0` and `REMOVE_KILLSWITCH_ON_EXIT=1`. Note that there will be nothing preventing your VPN-forced clients from leaking their real IP if you disable the killswitch. 
-  
-  3. If you previously had the killswitch enabled and want to disable it after a crash or exit to recover Internet access, read the previous question. 
+    1. To enable the kill switch, set `KILLSWITCH=1` in the `vpn.conf` file. If you want the kill switch to remain even when you exit OpenVPN cleanly (not just when it crashes), then set `REMOVE_KILLSWITCH_ON_EXIT=0` as well. 
+
+    2. To disable the kill switch, set `KILLSWITCH=0` and `REMOVE_KILLSWITCH_ON_EXIT=1`. Note that there will be nothing preventing your VPN-forced clients from leaking their real IP if you disable the kill switch. 
+
+    3. If you previously had the kill switch enabled and want to disable it after a crash or exit to recover Internet access, read the previous question. 
   
 </details>
 
