@@ -80,7 +80,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
     * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
     
-8. If everything is working properly, stop the OpenVPN client by pressing Ctrl+C, and then run it in the background with the following command. You can modify the command to change `--ping-restart` or other options as needed. The only requirement is that you run updown.sh script as the up/down script and `--route-noexec` to disable OpenVPN from adding routes to the default table instead of our custom one.
+8. If everything is working properly, stop the OpenVPN client by pressing Ctrl+C, and then run it in the background with the following command. If you want to enable the killswitch to block Internet access to forced clients if OpenVPN crashes, set `KILLSWITCH=1` in the `vpn.conf` file before starting OpenVPN. If you also want to block Internet access to forced clients when you exit OpenVPN cleanly (with SIGTERM), then set `REMOVE_KILLSWITCH_ON_EXIT=0`.
 
     ```sh
     nohup openvpn --config nordvpn.ovpn \
@@ -91,6 +91,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
                   --ping-restart 15 \
                   --mute-replay-warnings > openvpn.log &
     ```
+    You can modify the command to change `--ping-restart` or other options as needed. The only requirement is that you run updown.sh script as the up/down script and `--route-noexec` to disable OpenVPN from adding routes to the default table instead of our custom one.
     
 9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 10. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
@@ -223,6 +224,19 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
         
     * If you added blackhole routes and deleted the killswitch in the previous step, make sure to disable the blackhole routes in the Unifi Settings or you might suddenly lose Internet access when the blackhole routes are re-added by the system.
       
+</details>
+
+<details>
+  <summary>How do I enable or disable the killswitch and what does it do?</summary>
+  
+  The killswitch disables Internet access for VPN-forced clients if the VPN crashes or exits. This is good for when you do not want to leak your real IP if the VPN crashes or exits prematurely. Follow the instructions below to enable or disable the killswitch.
+  
+  1. To enable the kill switch, set `KILLSWITCH=1` in the `vpn.conf` file. If you want the killswitch to remain even when you exit OpenVPN cleanly (not just when it crashes), then set `REMOVE_KILLSWITCH_ON_EXIT=0` as well. 
+  
+  2. To disable the kill switch, set `KILLSWITCH=0` and `REMOVE_KILLSWITCH_ON_EXIT=1`. Note that there will be nothing preventing your VPN-forced clients from leaking their real IP if you disable the killswitch. 
+  
+  3. If you previously had the killswitch enabled and want to disable it after a crash or exit to recover Internet access, read the previous question. 
+  
 </details>
 
 <details>
