@@ -41,13 +41,16 @@ run_rule_watcher() {
 # 202 = WAN2 table, 201 = WAN1 table on UDMP.
 # TODO: Does the UDM (non-pro) use the same table numbers?
 get_gateway() {
-	if [ -z "${route_net_gateway}" ]; then
-		route_net_gateway=$(ip route show default table 202 | cut -d' ' -f3)
-		if [ -z "${route_net_gateway}" ]; then
-			route_net_gateway=$(ip route show default table 201 | cut -d' ' -f3)
-		fi
+	if [ -z "${route_net_gateway_ip}" ] && [ -z "${route_net_gateway_dev}" ]; then
+		for table in 201 202; do
+			route_net_gateway_ip=$(ip route show table ${table} | grep "default.*via" | sed -E s/".* via ([0-9\.]+) .*"/"\1"/g)
+			route_net_gateway_dev=$(ip route show table ${table} | grep "default.*dev" | sed -E s/".* dev ([^ ]+) .*"/"\1"/g)
+			if [ -n "${route_net_gateway_ip}" ] || [ -n "${route_net_gateway_dev}" ]; then
+				break
+			fi
+		done
 	fi
-	if [ -z "${route_net_gateway}" ]; then
+	if [ -z "${route_net_gateway_ip}" ] && [ -z "${route_net_gateway_dev}" ]; then
 		echo "$(date +'%a %b %d %H:%M:%S %Y') $(basename "$0"): No default gateway found."
 	fi
 }
@@ -94,8 +97,12 @@ add_vpn_routes() {
 	for route in $(env | grep route_ipv6_network_ | cut -d'=' -f2); do
 		ip -6 route replace ${route} dev ${dev} table ${ROUTE_TABLE}
 	done
-	if [ ! -z "${trusted_ip}" -a ! -z "${route_net_gateway}" ]; then
-		ip route replace ${trusted_ip}/32 via ${route_net_gateway} table ${ROUTE_TABLE}
+	if [ -n "${trusted_ip}" ]; then
+		if [ -n "${route_net_gateway_ip}" ]; then
+			ip route replace ${trusted_ip}/32 via ${route_net_gateway_ip} table ${ROUTE_TABLE}
+		elif [ -n "${route_net_gateway_dev}" ]; then
+			ip route replace ${trusted_ip}/32 dev ${route_net_gateway_dev} table ${ROUTE_TABLE}
+		fi
 	fi
 }
 
