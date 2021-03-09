@@ -73,8 +73,8 @@ add_vpn_routes() {
 	get_gateway
 
 	# Add default route to VPN
-	ip route replace 0.0.0.0/1 via ${route_vpn_gateway} table ${ROUTE_TABLE}
-	ip route replace 128.0.0.0/1 via ${route_vpn_gateway} table ${ROUTE_TABLE}
+	ip route replace 0.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
+	ip route replace 128.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
 	ip -6 route replace ::/1 dev ${dev} table ${ROUTE_TABLE}
 	ip -6 route replace 8000::/1 dev ${dev} table ${ROUTE_TABLE}
 
@@ -89,7 +89,7 @@ add_vpn_routes() {
 		fi
 		cidr=$(netmask_to_cidr $route_netmask_i)
 		if [[ "$cidr" = "32" ]]; then
-			ip route replace ${route_network_i}/32 via ${route_gateway_i} table ${ROUTE_TABLE}
+			ip route replace ${route_network_i}/32 via ${route_gateway_i} dev ${dev} table ${ROUTE_TABLE}
 		else
 			ip route replace ${route_network_i}/${cidr} dev ${dev} table ${ROUTE_TABLE}
 		fi
@@ -98,7 +98,9 @@ add_vpn_routes() {
 		ip -6 route replace ${route} dev ${dev} table ${ROUTE_TABLE}
 	done
 	if [ -n "${trusted_ip}" ]; then
-		if [ -n "${route_net_gateway_ip}" ]; then
+		if [ -n "${route_net_gateway_ip}" ] && [ -n "${route_net_gateway_dev}" ]; then
+			ip route replace ${trusted_ip}/32 via ${route_net_gateway_ip} dev ${route_net_gateway_dev} table ${ROUTE_TABLE}
+		elif [ -n "${route_net_gateway_ip}" ]; then
 			ip route replace ${trusted_ip}/32 via ${route_net_gateway_ip} table ${ROUTE_TABLE}
 		elif [ -n "${route_net_gateway_dev}" ]; then
 			ip route replace ${trusted_ip}/32 dev ${route_net_gateway_dev} table ${ROUTE_TABLE}
