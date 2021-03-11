@@ -38,7 +38,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     ```sh
     cd /mnt/data
     mkdir /mnt/data/openvpn
-    curl -sL https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/openvpn/*" -j -d openvpn && chmod +x openvpn/*.sh
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/openvpn/*" -o -j -d openvpn && chmod +x openvpn/*.sh
     ```
     
 3. Create a directory for your VPN provider's openvpn configuration files, and copy your VPN's configuration files (certificates, config, password files, etc) and the sample vpn.conf from `/mnt/data/openvpn/vpn.conf.sample`. NordVPN is used below as an example. 
