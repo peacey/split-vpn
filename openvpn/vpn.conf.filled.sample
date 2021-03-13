@@ -26,6 +26,15 @@ EXEMPT_SOURCE_MAC_PORT="both-00:ad:23:10:0a:30-22,32400,80,443,55555"
 EXEMPT_DESTINATIONS_IPV4="192.168.1.0/24 10.0.5.3"
 EXEMPT_DESTINATIONS_IPV6="2001:100a:d666:1a22::/56 f000::/4"
 
+# Force/exempt these IP sets
+# IP sets need to be created before this script is run or the script will error.
+# IP sets can be updated externally and will be matched dynamically. 
+# Each IP set entry consists of the IP set name and whether to match on source 
+# or destination. src/dst needs to be specified for each IP set field.
+# Format: [IPSet Name]:[src/dst,src/dst,...]
+FORCED_IPSETS="VPN_FORCED:dst"
+EXEMPT_IPSETS="VPN_EXEMPT:dst"
+
 # VPN port forwards.
 # Format: [tcp/udp/both]-[VPN Port]-[Forward IP]-[Forward Port]
 PORT_FORWARDS_IPV4="tcp-21674-192.168.1.1-50001"

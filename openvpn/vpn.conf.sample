@@ -9,6 +9,12 @@ FORCED_SOURCE_IPV4=""
 FORCED_SOURCE_IPV6=""
 FORCED_SOURCE_MAC=""
 
+# Force these destinations through the VPN. 
+# These destinations will be forced regardless of source.
+# Format: [IP/nn]
+FORCED_DESTINATIONS_IPV4=""
+FORCED_DESTINATIONS_IPV6=""
+
 # Exempt these sources from the VPN. 
 # Format: [IP/nn] for IP. [xx:xx:xx:xx:xx:xx] for mac.
 EXEMPT_SOURCE_IPV4=""
@@ -25,6 +31,18 @@ EXEMPT_SOURCE_MAC_PORT=""
 # Format: [IP/nn]
 EXEMPT_DESTINATIONS_IPV4=""
 EXEMPT_DESTINATIONS_IPV6=""
+
+# Force/exempt these IP sets
+# IP sets need to be created before this script is run or the script will error.
+# IP sets can be updated externally and will be matched dynamically. 
+# Each IP set entry consists of the IP set name and whether to match on source 
+# or destination. src/dst needs to be specified for each IP set field.
+# Format: [IPSet Name]:[src/dst,src/dst,...]
+FORCED_IPSETS=""
+EXEMPT_IPSETS=""
+
+FORCED_IPSETS=""
+EXEMPT_IPSETS=""
 
 # VPN port forwards.
 # Format: [tcp/udp/both]-[VPN Port]-[Forward IP]-[Forward Port]
