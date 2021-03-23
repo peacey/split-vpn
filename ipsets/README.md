@@ -2,17 +2,17 @@
 
 The built-in dnsmasq server on the UDM/P can be set up to add the IPs of domains to a kernel IP set as soon as they are looked up. The VPN script can be configured to force these IP sets through the VPN (or exempt them). Configured together, this allows for domains to be forced through the VPN (or exempt).
 
-This configuration is supported on both the built-in dnsmasq or pihole (which uses it's own dnsmasq). If you are using pihole, it needs to run in the host network namespace. See [these instructions](https://github.com/peacey/split-vpn/blob/ipset/dnsmasq/Pihole-Host-Mode.md) for how to run pihole in the host network namespace.
+This configuration is supported on both the built-in dnsmasq or pihole (which uses it's own dnsmasq). If you are using pihole, it needs to run in the host network namespace. See [these instructions](Pihole-Host-Mode.md) for how to run pihole in the host network namespace.
 
 These instructions assume you have already installed the VPN script according to the instructions [here](https://github.com/peacey/split-vpn/blob/main/README.md#how-do-i-use-this).
 
-## How to configure dnsmasq.
+## How to configure dnsmasq or pihole
 
 1. Download the ipset script into `/mnt/data/split-vpn/ipsets`.
 	```sh
 	cd /mnt/data/split-vpn
 	mkdir ipsets
-	curl -sL https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/ipsets/*" -j -d ipsets && chmod +x ipsets/*.sh
+	curl -Lo https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/ipsets/*" -j -d ipsets && chmod +x ipsets/*.sh
 	```
 2. Copy the sample ipset config file. 
 	```sh
