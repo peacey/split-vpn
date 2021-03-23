@@ -1,8 +1,8 @@
-# dnsmasq/pihole IP set configuration
+## How to force domains
 
 The built-in dnsmasq server on the UDM/P can be set up to add the IPs of domains to a kernel IP set as soon as they are looked up. The VPN script can be configured to force these IP sets through the VPN (or exempt them). Configured together, this allows for domains to be forced through the VPN (or exempt).
 
-This configuration is supported on both the built-in dnsmasq and pihole (which uses dnsmasq). If you are using pihole, it needs to run in the host network namespace. See [these instructions] for how to run pihole in the host network namespace.
+This configuration is supported on both the built-in dnsmasq or pihole (which uses it's own dnsmasq). If you are using pihole, it needs to run in the host network namespace. See [these instructions](https://github.com/peacey/split-vpn/blob/ipset/dnsmasq/Pihole-Host-Mode.md) for how to run pihole in the host network namespace.
 
 These instructions assume you have already installed the VPN script according to the instructions [here](https://github.com/peacey/split-vpn/blob/main/README.md#how-do-i-use-this).
 
@@ -22,14 +22,14 @@ These instructions assume you have already installed the VPN script according to
 3. Edit the `VPN_domains.conf` file with your desired settings. 
 	* If you are using pihole on the UDM instead of the built-in dnsmasq server, then uncomment the pihole settings and comment out the dnsmasq settings. The pihole container must be running in host network mode. See ... below.
 4. Run `./add-dnsmasq-ipsets.sh` and make sure there are no errors. 
-	* At this point, you can test if the ipsets and dns server are set up correctly by following the instructions [below](). 
+	* At this point, you can test if the ipsets and dns server are set up correctly by following the instructions [below](#how-to-test-if-the-dns-server-is-setup-correctly). 
 5. Modify your `vpn.conf` file for your VPN client. 
-	a. If you want to force these domain restrictions on ALL clients not just VPN-forced ones, then set:
-		```
+	1. If you want to force these domain restrictions on ALL clients not just VPN-forced ones, then set:
+		```sh
 		FORCED_IPSETS="VPN_FORCED:dst"
 		EXEMPT_IPSETS="VPN_EXEMPT:dst"
 		```
-	b. If you want to force different domain sets to different clients or VLANs, see the instructions below.
+	2. If you want to force different domain sets to different clients or VLANs, see the instructions [below](#how-can-I-force-different-domain-sets-to-different-clients).
 6. Restart the VPN client to apply the new configuration.  
 5. If you are using a boot script (`/mnt/data/on_boot.d/run-vpn.sh`), modify it and add the following lines before you load the configuration for openvpn.
 	```sh
@@ -45,9 +45,12 @@ These instructions assume you have already installed the VPN script according to
 	cp VPN_domains.conf.sample VPN3_domains.conf
 	```
 2. Modify each domain set configuration and make sure to set a unique `PREFIX` in each config.
-3. Use the `CUSTOM_FORCED_RULES` and `CUSTOM_EXEMPT_RULES` settings to choose which domain sets to force/exempt to which clients. Here are some examples:
+3. Use the `CUSTOM_FORCED_RULES` and `CUSTOM_EXEMPT_RULES` settings to choose which domain sets to force/exempt to which clients. 
+	<details> 
+	<summary>Click here for some examples.</summary>
+	
 	* To force by Source VLAN or Interface:
-	```
+		```
 		CUSTOM_FORCED_RULES_IPV4="
 			-m set --match-set VPN_FORCED dst -i br6
 			-m set --match-set VPN2_FORCED dst -i br7
@@ -103,6 +106,7 @@ These instructions assume you have already installed the VPN script according to
 			-m set --match-set VPN2_EXEMPT dst -m mac --mac-source yy:yy:yy:yy:yy:yy
 		"
 		```
+	</details>
 
 ## How to test if the dns server is setup correctly
 1. After running `add-dnsmasq-ipsets.sh`, IP sets VPN_FORCED and VPN_EXEMPT, and their IPv4 and IPv6 versions, will be created (assuming you set `PREFIX=VPN` in the domains config).
