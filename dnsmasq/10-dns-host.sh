@@ -4,8 +4,15 @@
 # run alongside the UDM/P's dnsmasq. 
 
 ## configuration variables:
+
+# VLAN ID
 VLAN=5
+
+# IPv4 to assign to pihole network
 IPV4=10.0.5.3
+
+# IPv6 to assign to pihole network
+# Can be empty or commented out for no IPv6
 IPV6=fd62:89a2:fda9:e23::2
 
 # Set this to a randomly generated MAC. 
@@ -28,13 +35,6 @@ PIHOLE_CONFIG="/mnt/data/pihole/etc-dnsmasq.d"
 # port for the web, but be able to access it on port 80. 
 REDIRECT_WEB_PORT=81
 
-# Enable this if your pihole is on the same subnet as the devices/interfaces
-# you are forwarding. This will allow the return traffic to work on the same
-# subnet, but will make the pihole think the requests are coming from the router.
-# You will lose client information in the pihole dashboard if you enable this.
-# It is preferable to put the pihole on a different subnet and disable this.
-ENABLE_MASQUERADE=0
-
 ## END OF CONFIGURATION
 
 LISTEN_IPS="$IPV4"
@@ -48,7 +48,7 @@ ip link set br${VLAN} promisc on
 # create macvlan bridge and add IPv4 IP
 ip link add br${VLAN}pi link br${VLAN} type macvlan mode bridge
 ip link set dev br${VLAN}pi address $MAC
-ip addr replace ${IPV4}/24 dev br${VLAN}pi noprefixroute
+ip addr replace ${IPV4}/32 dev br${VLAN}pi noprefixroute
 
 # (optional) add IPv6 IP to macvlan bridge
 if [ -n "${IPV6}" ]; then
@@ -99,12 +99,4 @@ if [ -n "$REDIRECT_WEB_PORT" ]; then
 		prerouting_rule="PREROUTING -p tcp -d $IPV6 --dport 80 -j DNAT --to [$IPV6]:${REDIRECT_WEB_PORT}"
 		ip6tables -t nat -C ${prerouting_rule} || ip6tables -t nat -A ${prerouting_rule}
 	fi
-fi
-
-# Enable masquerade if set
-if [ "$ENABLE_MASQUERADE" = "1" ]; then
-  for proto in udp tcp; do
-    postrouting_rule="POSTROUTING ! -s ${IPV4} -d ${IPV4} -p ${proto} --dport 53 -j MASQUERADE"
-    iptables -t nat -C ${postrouting_rule} || iptables -t nat -A ${postrouting_rule}
-  done
 fi
