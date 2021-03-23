@@ -5,7 +5,7 @@ The instructions below were adapted from the original run-pihole instructions [f
 1. On your controller, make a network with no DHCP server and give it a VLAN. For this example we are using VLAN 5.
 2. Download the `10-dns-host.sh` script into `/mnt/data/on_boot.d`
 	```sh
-	
+	curl -o /mnt/data/on_boot.d/10-dns-host.sh https://raw.githubusercontent.com/peacey/split-vpn/ipset/ipsets/10-dns-host.sh
 	```
 3. Edit `/mnt/data/on_boot.d/10-dns-host.sh` and set your desired options.
 4. If you previously installed the pihole container, stop it and remove it.
@@ -47,5 +47,6 @@ The instructions below were adapted from the original run-pihole instructions [f
 	
 	1. Change the IPs in the above command to the IPs you defined in `10-dns-host.sh`. You can remove `ServerIPv6` and set `IPv6` to False if you don't want IPv6 support.
 	2. The PiHole web server will run on port 81 with the above command. The default configuration in `10-dns-host.sh` will add a DNAT rule from port 81 to port 80 for the pihole IP so that the web server is accessible on port 80. If you want to use a different port than 81, make sure to set `REDIRECT_WEB_PORT` in `10-dns-host.sh` to the same IP as `WEB_PORT` above.
+	3. If you have a previous installation of pihole, make sure the folders passed to `-v` are correct to use the same configuration. 
 7. If this is your first time setting up pihole, follow the rest of the instructions at [run-pihole](https://github.com/boostchicken/udm-utilities/tree/master/run-pihole) to set the pihole password.
 8. Check that pihole is working by visiting http://10.0.5.3 in the browser.
