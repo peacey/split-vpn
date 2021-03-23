@@ -12,7 +12,7 @@ These instructions assume you have already installed the VPN script according to
 	```sh
 	cd /mnt/data/split-vpn
 	mkdir ipsets
-	curl -Lo https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/ipsets/*" -j -d ipsets && chmod +x ipsets/*.sh
+	curl -Lo https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/ipsets/*" -o -j -d ipsets && chmod +x ipsets/*.sh
 	```
 2. Copy the sample ipset config file. 
 	```sh
