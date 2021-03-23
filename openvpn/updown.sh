@@ -154,10 +154,10 @@ if [[ "$2" = "force-down" ]]; then
 	kill_rule_watcher
 	delete_all_routes
 	sh ${iptables_script} force-down $1
-	echo "Forced ${DEV} down. Deleted killswitch and rules."
+	echo "Forced $1 down. Deleted killswitch and rules."
 elif [[ "$2" = "pre-up" ]]; then
 	add_blackhole_routes
-	sh ${iptables_script} up ${dev}
+	sh ${iptables_script} up $1
 	run_rule_watcher
 elif [[ "${script_type}" = "up" ]]; then
 	add_blackhole_routes
