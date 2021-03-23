@@ -17,7 +17,7 @@ IPV6="fd62:89a2:fda9:e23::2"
 
 # Set this to a randomly generated MAC. 
 # Use an online MAC address generator as not every combination is valid. 
-MAC="19:de:b0:ff:c7:37"
+MAC="1a:34:24:f2:a0:09"
 
 # Set this to the interface(s) on which you want DNS TCP/UDP port 53 traffic
 # re-routed through the pihole. Separate interfaces with spaces.
