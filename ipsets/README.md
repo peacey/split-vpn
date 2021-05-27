@@ -2,7 +2,7 @@
 
 The built-in dnsmasq server on the UDM/P can be set up to add the IPs of domains to a kernel IP set as soon as they are looked up. The VPN script can be configured to force these IP sets through the VPN (or exempt them). Configured together, this allows for domains to be forced through the VPN (or exempt).
 
-This configuration is supported on both the built-in dnsmasq or pihole (which uses it's own dnsmasq). If you are using pihole, it needs to run in the host network namespace. See [the instructions here](../pihole-host-mode/Pihole-Host-Mode.md) for how to run pihole in the host network namespace.
+This configuration is supported on both the built-in dnsmasq or pihole (which uses it's own dnsmasq). If you are using pihole, it needs to run in the host network namespace. See [the instructions here](../pihole-host-mode/README.md) for how to run pihole in the host network namespace.
 
 These instructions assume you have already installed the VPN script according to the instructions [here](https://github.com/peacey/split-vpn/blob/main/README.md#how-do-i-use-this).
 
@@ -20,7 +20,7 @@ These instructions assume you have already installed the VPN script according to
 	cp VPN_domains.conf.sample VPN_domains.conf
 	```
 3. Edit the `VPN_domains.conf` file with your desired settings. 
-	* If you are using pihole on the UDM instead of the built-in dnsmasq server, then uncomment the pihole settings and comment out the dnsmasq settings. The pihole container must be running in host network mode. See [the instructions here](../pihole-host-mode/Pihole-Host-Mode.md).
+	* If you are using pihole on the UDM instead of the built-in dnsmasq server, then uncomment the pihole settings and comment out the dnsmasq settings. The pihole container must be running in host network mode. See [the instructions here](../pihole-host-mode/README.md).
 4. Run `./add-dnsmasq-ipsets.sh` and make sure there are no errors. 
 	* At this point, you can test if the ipsets and dns server are set up correctly by following the instructions [below](#how-to-test-if-the-dns-server-is-setup-correctly). 
 5. Modify your `vpn.conf` file for your VPN client. 
