@@ -74,6 +74,32 @@ get_dns() {
 	done
 }
 
+# add_ipset_map_rule force/exempt ipset_map
+add_ipset_rule() {
+	for ipset_map in $2; do
+		ipset=$(echo "$ipset_map" | cut -d':' -f1)
+		map=$(echo "$ipset_map" | cut -d':' -f2)
+		ipset_type=$(ipset list "$ipset" | grep "Type:" | sed -E s/"Type: (.*)"/"\1"/g)
+		if [ "$1" = "force" ]; then
+			rule="PREROUTING -m set --match-set ${ipset} ${map} -j MARK --set-xmark ${MARK}"
+		else
+			rule="PREROUTING -m set --match-set ${ipset} ${map} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		fi
+		if [ "$ipset_type" = "list:set" ]; then 
+			add_rule both mangle "$rule"
+		else
+			family=$(ipset list "$ipset" | grep "Header:" | sed -E s/".*family (inet6?) .*"/"\1"/g)
+			if [ "$family" = "inet" ]; then
+				add_rule IPV4 mangle "$rule"
+			elif [ "$family" = "inet6" ]; then
+				add_rule IPV6 mangle "$rule"
+			else
+				echo "ERROR: Not adding $ipset with unknown family: $family."
+			fi
+		fi
+	done
+}
+
 # Add iptables rules
 add_iptables_rules() {
 	# Force traffic through VPN for each forced interface
@@ -93,6 +119,32 @@ add_iptables_rules() {
 	for mac in ${FORCED_SOURCE_MAC}; do
 		add_rule both mangle "PREROUTING -m mac --mac-source ${mac} -j MARK --set-xmark ${MARK}"
 	done
+
+	# Force traffic through VPN for each destination
+	for ip in ${FORCED_DESTINATIONS_IPV4}; do
+		add_rule IPV4 mangle "PREROUTING -d ${ip} -j MARK --set-xmark ${MARK}"
+	done
+	for ip in ${FORCED_DESTINATIONS_IPV6}; do
+		add_rule IPV6 mangle "PREROUTING -d ${ip} -j MARK --set-xmark ${MARK}"
+	done
+
+	# Force traffic through VPN for each ipset
+	add_ipset_rule force "${FORCED_IPSETS}"
+
+	(IFS=$'\n'
+	for rule in ${CUSTOM_FORCED_RULES_IPV4}; do
+		rule=$(echo "$rule" | xargs)
+		if [ -n "$rule" ]; then
+ 			IFS=' ' add_rule IPV4 mangle "PREROUTING $rule -j MARK --set-mark ${MARK}"
+		fi
+	done
+	for rule in ${CUSTOM_FORCED_RULES_IPV6}; do
+		rule=$(echo "$rule" | xargs)
+		if [ -n "$rule" ]; then
+ 			IFS=' ' add_rule IPV6 mangle "PREROUTING $rule -j MARK --set-mark ${MARK}"
+		fi
+	done
+	)
 
 	# Exempt sources from VPN
 	for ip in ${EXEMPT_SOURCE_IPV4}; do
@@ -129,19 +181,22 @@ add_iptables_rules() {
 		fi
 	done
 
-        # Exempt source MAC:PORT from VPN
-        for entry in ${EXEMPT_SOURCE_MAC_PORT}; do
-                proto=$(echo "$entry" | cut -d'-' -f1)
-                source_mac=$(echo "$entry" | cut -d'-' -f2)
-                sports=$(echo "$entry" | cut -d'-' -f3)
-                if [[ "$proto" = "both" ]]; then
-                        add_rule both mangle "PREROUTING -p tcp -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
-                        add_rule both mangle "PREROUTING -p udp -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
-                else
-                        add_rule both mangle "PREROUTING -p ${proto} -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
-                fi
-        done
-	
+	# Exempt source MAC:PORT from VPN
+	for entry in ${EXEMPT_SOURCE_MAC_PORT}; do
+		proto=$(echo "$entry" | cut -d'-' -f1)
+		source_mac=$(echo "$entry" | cut -d'-' -f2)
+		sports=$(echo "$entry" | cut -d'-' -f3)
+		if [[ "$proto" = "both" ]]; then
+			add_rule both mangle "PREROUTING -p tcp -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+			add_rule both mangle "PREROUTING -p udp -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		else
+			add_rule both mangle "PREROUTING -p ${proto} -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		fi
+	done
+
+	# Exempt ipsets from VPN
+	add_ipset_rule exempt "${EXEMPT_IPSETS}"
+
 	# Exempt IPv4/IPv6 destinations from VPN
 	for dest in ${EXEMPT_DESTINATIONS_IPV4}; do
 		add_rule IPV4 mangle "PREROUTING ! -i ${dev} -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
@@ -149,6 +204,22 @@ add_iptables_rules() {
 	for dest in ${EXEMPT_DESTINATIONS_IPV6}; do
 		add_rule IPV6 mangle "PREROUTING ! -i ${dev} -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 	done
+
+	(IFS=$'\n'
+	for rule in ${CUSTOM_EXEMPT_RULES_IPV4}; do
+		rule=$(echo "$rule" | xargs)
+		if [ -n "$rule" ]; then
+ 			IFS=' ' add_rule IPV4 mangle "PREROUTING $rule -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		fi
+	done
+	for rule in ${CUSTOM_EXEMPT_RULES_IPV6}; do
+		rule=$(echo "$rule" | xargs)
+		if [ -n "$rule" ]; then
+ 			IFS=' ' add_rule IPV6 mangle "PREROUTING $rule -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		fi
+	done
+	)
+
 
 	# Masquerade output traffic from VPN interface (dynamic SNAT)
 	add_rule both nat "POSTROUTING -o ${dev} -j MASQUERADE"
