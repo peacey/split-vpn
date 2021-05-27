@@ -680,6 +680,26 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
   </details>
   
   <details>
+    <summary>BYPASS_MASQUERADE_IPV4</summary>
+     Bypass masquerade (SNAT) for these IPv4s. This option should only be used if your VPN server is setup to know how to route the subnet you do not want to masquerade (e.g.: the "iroute" option in OpenVPN).
+     Set this option to ALL to disable masquerading completely.
+    
+      Format: [IP/nn] or "ALL"
+      Example: BYPASS_MASQUERADE_IPV4="10.100.1.0/24"
+
+  </details>
+  
+  <details>
+    <summary>BYPASS_MASQUERADE_IPV6</summary>
+     Bypass masquerade (SNAT) for these IPv6s. This option should only be used if your VPN server is setup to know how to route the subnet you do not want to masquerade (e.g.: the "iroute" option in OpenVPN).
+     Set this option to ALL to disable masquerading completely.
+    
+      Format: [IP/nn] or "ALL"
+      Example: BYPASS_MASQUERADE_IPV4="fd64::/64"
+
+  </details>
+  
+  <details>
     <summary>ROUTE_TABLE</summary>
       The custom route table number. 
       If you are running multiple openvpn clients, this needs to be unique for each client.
