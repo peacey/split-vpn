@@ -2,7 +2,7 @@
 
 The built-in dnsmasq server on the UDM/P can be set up to add the IPs of domains to a kernel IP set as soon as they are looked up. The VPN script can be configured to force these IP sets through the VPN (or exempt them). Configured together, this allows for domains to be forced through the VPN (or exempt).
 
-This configuration is supported on both the built-in dnsmasq or pihole (which uses it's own dnsmasq). If you are using pihole, it needs to run in the host network namespace. See [these instructions](Pihole-Host-Mode.md) for how to run pihole in the host network namespace.
+This configuration is supported on both the built-in dnsmasq or pihole (which uses it's own dnsmasq). If you are using pihole, it needs to run in the host network namespace. See [the instructions here](../pihole-host-mode/Pihole-Host-Mode.md) for how to run pihole in the host network namespace.
 
 These instructions assume you have already installed the VPN script according to the instructions [here](https://github.com/peacey/split-vpn/blob/main/README.md#how-do-i-use-this).
 
@@ -12,7 +12,7 @@ These instructions assume you have already installed the VPN script according to
 	```sh
 	cd /mnt/data/split-vpn
 	mkdir ipsets
-	curl -Lo https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/ipsets/*" -o -j -d ipsets && chmod +x ipsets/*.sh
+	curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/ipsets/*" -o -j -d ipsets && chmod +x ipsets/*.sh
 	```
 2. Copy the sample ipset config file. 
 	```sh
@@ -20,7 +20,7 @@ These instructions assume you have already installed the VPN script according to
 	cp VPN_domains.conf.sample VPN_domains.conf
 	```
 3. Edit the `VPN_domains.conf` file with your desired settings. 
-	* If you are using pihole on the UDM instead of the built-in dnsmasq server, then uncomment the pihole settings and comment out the dnsmasq settings. The pihole container must be running in host network mode. See ... below.
+	* If you are using pihole on the UDM instead of the built-in dnsmasq server, then uncomment the pihole settings and comment out the dnsmasq settings. The pihole container must be running in host network mode. See [the instructions here](../pihole-host-mode/Pihole-Host-Mode.md).
 4. Run `./add-dnsmasq-ipsets.sh` and make sure there are no errors. 
 	* At this point, you can test if the ipsets and dns server are set up correctly by following the instructions [below](#how-to-test-if-the-dns-server-is-setup-correctly). 
 5. Modify your `vpn.conf` file for your VPN client. 
@@ -45,7 +45,7 @@ These instructions assume you have already installed the VPN script according to
 	cp VPN_domains.conf.sample VPN3_domains.conf
 	```
 2. Modify each domain set configuration and make sure to set a unique `PREFIX` in each config.
-3. Use the `CUSTOM_FORCED_RULES` and `CUSTOM_EXEMPT_RULES` settings to choose which domain sets to force/exempt to which clients. 
+3. Use the `CUSTOM_FORCED_RULES_IPV4/IPV6` and `CUSTOM_EXEMPT_RULES_IPV4/IPV6` settings to choose which domain sets to force/exempt to which clients. 
 	<details> 
 	<summary>Click here for some examples.</summary>
 	
@@ -106,6 +106,7 @@ These instructions assume you have already installed the VPN script according to
 			-m set --match-set VPN2_EXEMPT dst -m mac --mac-source yy:yy:yy:yy:yy:yy
 		"
 		```
+	* You can mix different MAC, IP, VLAN custom rules together, just make sure to group them in the same variable. 
 	</details>
 
 ## How to test if the dns server is setup correctly
@@ -121,3 +122,4 @@ These instructions assume you have already installed the VPN script according to
 	ipset list VPN_EXEMPT6
 	```
 4. If you see the IPs of the domains you are forcing/exempting, then your DNS server and ipset configuration is set up correctly. 
+5. Continue with Step 5 in the [instructions above](#how-to-configure-dnsmasq-or-pihole) if you haven't completed them yet.
