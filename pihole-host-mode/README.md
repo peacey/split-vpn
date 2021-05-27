@@ -5,7 +5,7 @@ The instructions below were adapted from the original run-pihole instructions [f
 1. On your controller, make a network with no DHCP server and give it a VLAN. For this example we are using VLAN 5.
 2. Download the `10-dns-host.sh` script into `/mnt/data/on_boot.d`
 	```sh
-	curl -o /mnt/data/on_boot.d/10-dns-host.sh https://raw.githubusercontent.com/peacey/split-vpn/ipset/ipsets/10-dns-host.sh
+	curl -o /mnt/data/on_boot.d/10-dns-host.sh https://raw.githubusercontent.com/peacey/split-vpn/ipset/main/pihole-host-mode/10-dns-host.sh
 	```
 3. Edit `/mnt/data/on_boot.d/10-dns-host.sh` and set your desired options.
 4. If you previously installed the pihole container, stop it and remove it.
