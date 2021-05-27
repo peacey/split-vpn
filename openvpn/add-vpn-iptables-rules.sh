@@ -64,7 +64,7 @@ get_dns() {
 		if [ -z "${foreign_option_i}" ]; then
 			break
 		fi
-		dns=$(echo "${foreign_option_i}" | sed -E s/".*dhcp-option DNS ([0-9\.]+).*"/"\1"/g)
+		dns=$(echo "${foreign_option_i}" | sed -En s/".*dhcp-option DNS ([0-9\.]+).*"/"\1"/p)
 		if [ -z "${dns}" ]; then
 			continue
 		fi
