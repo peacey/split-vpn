@@ -170,16 +170,22 @@ elif [[ "$2" = "pre-up" ]]; then
 	run_rule_watcher
 elif [[ "${script_type}" = "up" ]]; then
 	add_blackhole_routes
-	add_vpn_routes
+	if [ "${script_context}" != "restart" ]; then
+		add_vpn_routes
+	fi
 	sh ${iptables_script} up ${dev}
 	run_rule_watcher
 else
-   	delete_vpn_routes
+	if [ "${script_context}" != "restart" ]; then
+   		delete_vpn_routes
+	fi
 	# Only delete the rules if option is set.
 	if [ "${REMOVE_KILLSWITCH_ON_EXIT}" = 1 ]; then
 		# Kill the rule checking daemon.
 		kill_rule_watcher
-		delete_all_routes
+		if [ "${script_context}" != "restart" ]; then
+                	delete_all_routes
+        	fi
 		sh ${iptables_script} down ${dev}
 	fi
 fi
