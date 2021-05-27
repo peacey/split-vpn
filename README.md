@@ -7,9 +7,10 @@ This is a helper script for the OpenVPN client on the UDMP that creates a split 
 
 ## Features
 
-* Force traffic to the VPN based on source interface (VLAN), MAC address, or IP address.
-* Exempt sources from the VPN based on IP, MAC address, IP:port, or MAC:port combination. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN, or specific services on forced clients, to exclude from the VPN.
+* Force traffic to the VPN based on source interface (VLAN), MAC address, IP address, or IP sets.
+* Exempt sources from the VPN based on IP, MAC address, IP:port, MAC:port combinations, or IP sets. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN, or specific services on forced clients, to exclude from the VPN.
 * Exempt destinations from the VPN by IP. This allows VPN-forced clients to communicate with the LAN or other VLANs.
+* Force domains to the VPN or exempt them from the VPN (only supported with dnsmasq or pihole). 
 * Port forwarding on the VPN side to local clients (not all VPN providers give you ports).
 * Redirect DNS for VPN traffic to either an upstream DNS server or a local server like pihole, or block DNS requests completely.
 * Built-in kill switch via iptables and blackhole routing.
@@ -33,21 +34,22 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     ssh root@192.168.1.254
     ```
     
-2. Download the scripts package and extract it to `/mnt/data/openvpn`.
+2. Download the scripts package and extract it to `/mnt/data/split-vpn/openvpn`.
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/openvpn
+    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/openvpn
+    cd /mnt/data/split-vpn
     curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/openvpn/*" -o -j -d openvpn && chmod +x openvpn/*.sh
     ```
     
-3. Create a directory for your VPN provider's openvpn configuration files, and copy your VPN's configuration files (certificates, config, password files, etc) and the sample vpn.conf from `/mnt/data/openvpn/vpn.conf.sample`. NordVPN is used below as an example. 
+3. Create a directory for your VPN provider's openvpn configuration files, and copy your VPN's configuration files (certificates, config, password files, etc) and the sample vpn.conf from `/mnt/data/split-vpn/openvpn/vpn.conf.sample`. NordVPN is used below as an example. 
 
     ```sh
-    mkdir /mnt/data/openvpn/nordvpn
-    cd /mnt/data/openvpn/nordvpn
+    mkdir /mnt/data/split-vpn/openvpn/nordvpn
+    cd /mnt/data/split-vpn/openvpn/nordvpn
     curl https://downloads.nordcdn.com/configs/files/ovpn_legacy/servers/us-ca12.nordvpn.com.udp1194.ovpn --out nordvpn.ovpn
-    cp /mnt/data/openvpn/vpn.conf.sample /mnt/data/openvpn/nordvpn/vpn.conf
+    cp /mnt/data/split-vpn/openvpn/vpn.conf.sample /mnt/data/split-vpn/openvpn/nordvpn/vpn.conf
     ```
     
 4. If your VPN provider uses a username/password, put them in a `username_password.txt` file in the same directory as the configuration with the username on the first line and password on the second line. Then either: 
@@ -61,8 +63,8 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     ```sh
     openvpn --config nordvpn.ovpn \
             --route-noexec \
-            --up /mnt/data/openvpn/updown.sh \
-            --down /mnt/data/openvpn/updown.sh \
+            --up /mnt/data/split-vpn/openvpn/updown.sh \
+            --down /mnt/data/split-vpn/openvpn/updown.sh \
             --script-security 2
     ```
     
@@ -85,8 +87,8 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     ```sh
     nohup openvpn --config nordvpn.ovpn \
                   --route-noexec \
-                  --up /mnt/data/openvpn/updown.sh \
-                  --down /mnt/data/openvpn/updown.sh \
+                  --up /mnt/data/split-vpn/openvpn/updown.sh \
+                  --down /mnt/data/split-vpn/openvpn/updown.sh \
                   --script-security 2 \
                   --ping-restart 15 \
                   --mute-replay-warnings > openvpn.log &
@@ -112,13 +114,13 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     ```sh
     #!/bin/sh
     # Load configuration and run openvpn
-    cd /mnt/data/openvpn/nordvpn
+    cd /mnt/data/split-vpn/openvpn/nordvpn
     source ./vpn.conf
-    /mnt/data/openvpn/updown.sh ${DEV} pre-up &> pre-up.log
+    /mnt/data/split-vpn/openvpn/updown.sh ${DEV} pre-up &> pre-up.log
     nohup openvpn --config nordvpn.ovpn \
                   --route-noexec \
-                  --up /mnt/data/openvpn/updown.sh \
-                  --down /mnt/data/openvpn/updown.sh \
+                  --up /mnt/data/split-vpn/openvpn/updown.sh \
+                  --down /mnt/data/split-vpn/openvpn/updown.sh \
                   --dev-type tun --dev ${DEV} \
                   --script-security 2 \
                   --ping-restart 15 \
@@ -159,26 +161,26 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     #!/bin/sh
 
     # Load configuration for mullvad and run openvpn
-    cd /mnt/data/openvpn/mullvad
+    cd /mnt/data/split-vpn/openvpn/mullvad
     source ./vpn.conf
-    /mnt/data/openvpn/updown.sh ${DEV} pre-up &> pre-up.log
+    /mnt/data/split-vpn/openvpn/updown.sh ${DEV} pre-up &> pre-up.log
     nohup openvpn --config mullvad.conf \
                   --route-noexec \
-                  --up /mnt/data/openvpn/updown.sh \
-                  --down /mnt/data/openvpn/updown.sh \
+                  --up /mnt/data/split-vpn/openvpn/updown.sh \
+                  --down /mnt/data/split-vpn/openvpn/updown.sh \
                   --script-security 2 \
                   --dev-type tun --dev ${DEV} \
                   --ping-restart 15 \
                   --mute-replay-warnings > openvpn.log &
 
     # Load configuration for nordvpn and run openvpn
-    cd /mnt/data/openvpn/nordvpn
+    cd /mnt/data/split-vpn/openvpn/nordvpn
     source ./vpn.conf
-    /mnt/data/openvpn/updown.sh ${DEV} pre-up &> pre-up.log
+    /mnt/data/split-vpn/openvpn/updown.sh ${DEV} pre-up &> pre-up.log
     nohup openvpn --config nordvpn.ovpn \
                   --route-noexec \
-                  --up /mnt/data/openvpn/updown.sh \
-                  --down /mnt/data/openvpn/updown.sh \
+                  --up /mnt/data/split-vpn/openvpn/updown.sh \
+                  --down /mnt/data/split-vpn/openvpn/updown.sh \
                   --script-security 2 \
                   --dev-type tun --dev ${DEV} \
                   --ping-restart 15 \
@@ -186,6 +188,13 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     ```
 
 </details>
+
+<details>
+  <summary>Can I force/exempt domains to the VPN instead of just IPs?</summary>
+  
+  * Yes you can if you are using dnsmasq or pihole. Please see the [instructions here](ipsets/README.md) for how to set this up.
+  
+</details>  
 
 <details>
   <summary>How do I safely shutdown the VPN?</summary>
@@ -218,8 +227,8 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     * If you want to delete the kill switch so your forced clients can access your default network again instead of go through the VPN, run the following command (replace tun0 with the device you defined in the config file) after changing to the directory with the vpn.conf file. 
     
         ```sh
-        cd /mnt/data/openvpn/nordvpn
-        /mnt/data/openvpn/updown.sh tun0 force-down
+        cd /mnt/data/split-vpn/openvpn/nordvpn
+        /mnt/data/split-vpn/openvpn/updown.sh tun0 force-down
         ```
         
     * If you added blackhole routes and deleted the kill switch in the previous step, make sure to disable the blackhole routes in the Unifi Settings or you might suddenly lose Internet access when the blackhole routes are re-added by the system.
@@ -385,6 +394,24 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
   </details>
   
   <details>
+    <summary>FORCED_DESTINATIONS_IPV4</summary>
+      Force IPv4 destinations to the VPN for all VPN-forced clients.
+  
+      Format: [IP/nn]
+      Example: FORCED_DESTINATIONS_IPV4="1.1.1.1"
+
+  </details>
+
+  <details>
+    <summary>FORCED_DESTINATIONS_IPV6</summary>
+      Force IPv6 destinations to the VPN for all VPN-forced clients.
+  
+      Format: [IP/nn]
+      Example: FORCED_DESTINATIONS_IPV6="2001:1111:2222:3333::2"
+
+  </details>
+  
+  <details>
     <summary>EXEMPT_SOURCE_IPV4</summary>
       Exempt IPv4 sources from the VPN. This allows you to create exceptions to the force rules above. For example, if you forced a whole interface with FORCED_SOURCE_INTERFACE, you can selectively choose clients from that VLAN to exclude.
   
@@ -449,7 +476,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
   
   <details>
     <summary>EXEMPT_DESTINATIONS_IPV4</summary>
-      Exempt IPv4 destinations from the VPN. For example, you can allow a LAN subnet so VPN-forced clients are still able to communicate with others on that VLAN, or you can exempt a local DNS address if you want to have local DNS to your pihole or DoH client.
+      Exempt IPv4 destinations from the VPN for all VPN-forced clients.
   
       Format: [IP/nn]
       Example: EXEMPT_DESTINATIONS_IPV4="192.168.1.0/24 10.0.5.3/32"
@@ -458,10 +485,93 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
 
   <details>
     <summary>EXEMPT_DESTINATIONS_IPV6</summary>
-      Exempt IPv6 destinations from the VPN. For example, you can allow a LAN subnet so VPN-forced clients are still able to communicate with others on that VLAN, or you can exempt a local DNS address if you want to have local DNS to your pihole or DoH client.
-  
+      Exempt IPv6 destinations from the VPN for all VPN-forced clients.
       Format: [IP/nn]
       Example: EXEMPT_DESTINATIONS_IPV6="fd62:1200:1300:1400::2/32 2001:1111:2222:3333::/56"
+
+  </details>
+  
+  <details>
+    <summary>FORCED_IPSETS</summary>
+      Force these IP sets through the VPN. IP sets need to be created before this script is run or the script will error. IP sets can be updated externally and will be matched dynamically. Each IP set entry consists of the IP set name and whether to match on source or destination for each field in the IP set. 
+    
+      Note: These IP sets will be forced for every VPN-forced client. If you want to force different IP sets for different clients, use `CUSTOM_FORCED_RULES_IPV4` and  `CUSTOM_FORCED_RULES_IPV6` below.
+    
+      src/dst needs to be specified for each IP set field.
+      Format: Format: [IPSet Name]:[src/dst,src/dst,...]
+      Example: FORCED_IPSETS="VPN_FORCED:dst IPSET_NAME:src,dst"
+
+  </details>
+  
+  <details>
+    <summary>EXEMPT_IPSETS</summary>
+      Exempt these IP sets from the VPN. IP sets need to be created before this script is run or the script will error. IP sets can be updated externally and will be matched dynamically. Each IP set entry consists of the IP set name and whether to match on source or destination for each field in the IP set. 
+    
+      Note: These IP sets will be exempt for every VPN-forced client. If you want to exempt different IP sets for different clients, use `CUSTOM_EXEMPT_RULES_IPV4` and  `CUSTOM_EXEMPT_RULES_IPV6` below.
+    
+      src/dst needs to be specified for each IP set field.
+      Format: Format: [IPSet Name]:[src/dst,src/dst,...]
+      Example: EXEMPT_IPSETS="VPN_EXEMPT:dst IPSET_NAME:src,dst"
+
+  </details>
+  
+  <details>
+    <summary>CUSTOM_FORCED_RULES_IPV4</summary>
+      Custom IPv4 rules that will be forced to the VPN. The format of these rules is the matching portion of the iptables command, without the table, chain, and jump target. Multiple rules can be added on separate lines. These rules are added to the mangle table and the PREROUTING chain. 
+
+      Opening and closing quotation marks must not be removed if using multiple lines.
+      Format: Format: [Matching portion of iptables command]
+      Example: 
+        CUSTOM_FORCED_RULES_IPV4="
+            -s 192.168.1.6
+            -p tcp -s 192.168.1.10 --dport 443
+            -m set --match-set VPN_FORCED dst -i br6
+        "
+
+  </details>
+  
+  <details>
+    <summary>CUSTOM_FORCED_RULES_IPV6</summary>
+      Custom IPv6 rules that will be forced to the VPN. The format of these rules is the matching portion of the iptables command, without the table, chain, and jump target. Multiple rules can be added on separate lines. These rules are added to the mangle table and the PREROUTING chain. 
+      
+      Opening and closing quotation marks must not be removed if using multiple lines.
+      Format: Format: [Matching portion of iptables command]
+      Example: 
+        CUSTOM_FORCED_RULES_IPV6="
+            -s fd62:1200:1300:1400::2/32
+            -p tcp -s fd62:1200:1300:1400::10 --dport 443
+            -m set --match-set VPN_FORCED dst -i br6
+        "
+
+  </details>
+  
+  <details>
+    <summary>CUSTOM_EXEMPT_RULES_IPV4</summary>
+      Custom IPv4 rules that will be exempt from the VPN. The format of these rules is the matching portion of the iptables command, without the table, chain, and jump target. Multiple rules can be added on separate lines. These rules are added to the mangle table and the PREROUTING chain. 
+
+      Opening and closing quotation marks must not be removed if using multiple lines.
+      Format: Format: [Matching portion of iptables command]
+      Example: 
+        CUSTOM_EXEMPT_RULES_IPV4="
+            -s 192.168.1.6
+            -p tcp -s 192.168.1.10 --dport 443
+            -m set --match-set VPN_EXEMPT dst -i br6
+        "
+
+  </details>
+  
+  <details>
+    <summary>CUSTOM_EXEMPT_RULES_IPV6</summary>
+      Custom IPv6 rules that will be exempt from the VPN. The format of these rules is the matching portion of the iptables command, without the table, chain, and jump target. Multiple rules can be added on separate lines. These rules are added to the mangle table and the PREROUTING chain. 
+      
+      Opening and closing quotation marks must not be removed if using multiple lines.
+      Format: Format: [Matching portion of iptables command]
+      Example: 
+        CUSTOM_EXEMPT_RULES_IPV6="
+            -s fd62:1200:1300:1400::2/32
+            -p tcp -s fd62:1200:1300:1400::10 --dport 443
+            -m set --match-set VPN_EXEMPT dst -i br6
+        "
 
   </details>
   
