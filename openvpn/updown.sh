@@ -88,14 +88,23 @@ add_vpn_routes() {
 			break
 		fi
 		cidr=$(netmask_to_cidr $route_netmask_i)
-		if [[ "$cidr" = "32" ]]; then
-			ip route replace ${route_network_i}/32 via ${route_gateway_i} dev ${dev} table ${ROUTE_TABLE}
+		if [ -n "${route_gateway_i}" ]; then
+			ip route replace ${route_network_i}/${cidr} via ${route_gateway_i} dev ${dev} table ${ROUTE_TABLE}
 		else
 			ip route replace ${route_network_i}/${cidr} dev ${dev} table ${ROUTE_TABLE}
 		fi
 	done
-	for route in $(env | grep route_ipv6_network_ | cut -d'=' -f2); do
-		ip -6 route replace ${route} dev ${dev} table ${ROUTE_TABLE}
+	for i in $(seq 1 1000); do
+		route_ipv6_network_i=$(eval echo \$route_ipv6_network_$i)
+		route_ipv6_gateway_i=$(eval echo \$route_ipv6_gateway_$i)
+		if [ -z "${route_ipv6_network_i}" ]; then
+			break
+		fi
+		if [ -n "${route_ipv6_gateway_i}" ]; then
+			ip -6 route replace ${route_ipv6_network_i} via ${route_ipv6_gateway_i} dev ${dev} table ${ROUTE_TABLE}
+		else
+			ip -6 route replace ${route_ipv6_network_i} dev ${dev} table ${ROUTE_TABLE}
+		fi
 	done
 	if [ -n "${trusted_ip}" ]; then
 		if [ -n "${route_net_gateway_ip}" ] && [ -n "${route_net_gateway_dev}" ]; then
