@@ -84,9 +84,9 @@ REMOVE_STARTUP_BLACKHOLES=1
 # Bypass masquerade (SNAT) for these IPs. This option should only be used if your 
 # VPN server is setup to know how to route the subnet you do not want to masquerade 
 # (e.g.: the "iroute" option in OpenVPN).
-# Set this to ALL to disable masquerading completely.
-BYPASS_MASQUERADE_IPV4=""
-BYPASS_MASQUERADE_IPV6=""
+# Set these options to ALL to disable masquerading completely.
+BYPASS_MASQUERADE_IPV4="10.100.1.0/24"
+BYPASS_MASQUERADE_IPV6="fd62::/64"
 
 # Options for custom table and chains.
 # These options need to be unique for each instance of openvpn if running multiple.
