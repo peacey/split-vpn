@@ -81,6 +81,13 @@ REMOVE_KILLSWITCH_ON_EXIT=1
 # Set this to 0 only if you did not add any blackhole routes.
 REMOVE_STARTUP_BLACKHOLES=1
 
+# Bypass masquerade (SNAT) for these IPs. This option should only be used if your 
+# VPN server is setup to know how to route the subnet you do not want to masquerade 
+# (e.g.: the "iroute" option in OpenVPN).
+# Set this to ALL to disable masquerading completely.
+BYPASS_MASQUERADE_IPV4=""
+BYPASS_MASQUERADE_IPV6=""
+
 # Options for custom table and chains.
 # These options need to be unique for each instance of openvpn if running multiple.
 ROUTE_TABLE=101

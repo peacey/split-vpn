@@ -221,8 +221,30 @@ add_iptables_rules() {
 	)
 
 
+	enable_masq_ipv4=1
+	enable_masq_ipv6=1
 	# Masquerade output traffic from VPN interface (dynamic SNAT)
-	add_rule both nat "POSTROUTING -o ${dev} -j MASQUERADE"
+	for src in ${BYPASS_MASQUERADE_IPV4}; do
+		if [ "$src" = "ALL" ]; then
+			enable_masq_ipv4=0
+			break
+		fi
+		add_rule IPV4 nat "POSTROUTING -o ${dev} -s ${src} -j ACCEPT"
+	done
+	for src in ${BYPASS_MASQUERADE_IPV6}; do
+		if [ "$src" = "ALL" ]; then
+			enable_masq_ipv6=0
+			break
+		fi
+		add_rule IPV6 nat "POSTROUTING -o ${dev} -s ${src} -j ACCEPT"
+	done
+	if [ "$enable_masq_ipv4" = "1" ]; then
+		add_rule IPV4 nat "POSTROUTING -o ${dev} -j MASQUERADE"
+	fi
+	if [ "$enable_masq_ipv6" = "1" ]; then
+		add_rule IPV6 nat "POSTROUTING -o ${dev} -j MASQUERADE"
+	fi
+
 
 	# Force DNS through VPN for VPN traffic or REJECT VPN DNS traffic.
 	get_dns
