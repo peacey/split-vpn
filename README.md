@@ -695,7 +695,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
      Set this option to ALL to disable masquerading completely.
     
       Format: [IP/nn] or "ALL"
-      Example: BYPASS_MASQUERADE_IPV4="fd64::/64"
+      Example: BYPASS_MASQUERADE_IPV6="fd64::/64"
 
   </details>
   
