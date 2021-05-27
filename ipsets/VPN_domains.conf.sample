@@ -7,7 +7,7 @@
 PREFIX="VPN_"
 
 # Add your forced domains here.
-# Do not remove the first "read" or last "EOF" line.
+# Do not remove the opening or closing quotation marks.
 FORCED_DOMAINS="
 google.com
 yahoo.com
@@ -16,7 +16,7 @@ mullvad.net
 "
 
 # Add your exempt domains here.
-# Do not remove the first "read" or last "EOF" line.
+# Do not remove the opening or closing quotation marks.
 EXEMPT_DOMAINS="
 skipthedishes.com
 whatismyipaddress.com

@@ -41,9 +41,6 @@ EXEMPT_DESTINATIONS_IPV6=""
 FORCED_IPSETS=""
 EXEMPT_IPSETS=""
 
-FORCED_IPSETS=""
-EXEMPT_IPSETS=""
-
 # VPN port forwards.
 # Format: [tcp/udp/both]-[VPN Port]-[Forward IP]-[Forward Port]
 PORT_FORWARDS_IPV4=""

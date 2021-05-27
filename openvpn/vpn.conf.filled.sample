@@ -9,6 +9,12 @@ FORCED_SOURCE_IPV4="192.168.1.1/32"
 FORCED_SOURCE_IPV6="fd00::60/128"
 FORCED_SOURCE_MAC="00:30:93:10:0a:12"
 
+# Force these destinations through the VPN. 
+# These destinations will be forced regardless of source.
+# Format: [IP/nn]
+FORCED_DESTINATIONS_IPV4="1.1.1.1"
+FORCED_DESTINATIONS_IPV6="2606:4700:4700::1111"
+
 # Exempt these sources from the VPN. 
 # Format: [IP/nn] for IP. [xx:xx:xx:xx:xx:xx] for mac.
 EXEMPT_SOURCE_IPV4="192.168.1.2/32"
