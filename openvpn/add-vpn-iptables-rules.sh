@@ -6,7 +6,7 @@ set -e
 
 # ./add-vpn-iptables-rules.sh [up/down/force-down] [tun_dev]
 
-CHAINS="mangle:PREROUTING mangle:POSTROUTING mangle:FORWARD nat:PREROUTING nat:POSTROUTING filter:INPUT filter:FORWARD"
+CHAINS="mangle:PREROUTING mangle:POSTROUTING mangle:FORWARD mangle:OUTPUT nat:PREROUTING nat:POSTROUTING filter:INPUT filter:FORWARD"
 
 # Create the iptables chains
 create_chains() {
@@ -135,16 +135,21 @@ add_iptables_rules() {
 	for rule in ${CUSTOM_FORCED_RULES_IPV4}; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
- 			IFS=' ' add_rule IPV4 mangle "PREROUTING $rule -j MARK --set-mark ${MARK}"
+ 			IFS=' ' add_rule IPV4 mangle "PREROUTING $rule -j MARK --set-xmark ${MARK}"
 		fi
 	done
 	for rule in ${CUSTOM_FORCED_RULES_IPV6}; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
- 			IFS=' ' add_rule IPV6 mangle "PREROUTING $rule -j MARK --set-mark ${MARK}"
+ 			IFS=' ' add_rule IPV6 mangle "PREROUTING $rule -j MARK --set-xmark ${MARK}"
 		fi
 	done
 	)
+
+	# Force traffic through VPN for local output interfaces
+	for intfc in ${FORCED_LOCAL_INTERFACE}; do 
+		add_rule both mangle "OUTPUT -o ${intfc} -j MARK --set-xmark ${MARK}"
+	done
 
 	# Exempt sources from VPN
 	for ip in ${EXEMPT_SOURCE_IPV4}; do
@@ -220,7 +225,6 @@ add_iptables_rules() {
 	done
 	)
 
-
 	enable_masq_ipv4=1
 	enable_masq_ipv6=1
 	# Masquerade output traffic from VPN interface (dynamic SNAT)
@@ -244,7 +248,6 @@ add_iptables_rules() {
 	if [ "$enable_masq_ipv6" = "1" ]; then
 		add_rule IPV6 nat "POSTROUTING -o ${dev} -j MASQUERADE"
 	fi
-
 
 	# Force DNS through VPN for VPN traffic or REJECT VPN DNS traffic.
 	get_dns
