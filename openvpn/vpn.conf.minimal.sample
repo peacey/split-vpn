@@ -50,6 +50,22 @@ REMOVE_KILLSWITCH_ON_EXIT=1
 # Set this to 0 only if you did not add any blackhole routes.
 REMOVE_STARTUP_BLACKHOLES=1
 
+# Set the VPN provider.
+# "openvpn" for OpenVPN (default), or "external" for wireguard.
+VPN_PROVIDER="openvpn"
+
+# If using "external" for VPN_PROVIDER, set this to the VPN endpoint IP so that the
+# gateway route can be automatically added for the VPN endpoint.
+# OpenVPN passes the VPN endpoint IP to the script and will override these values.
+VPN_ENDPOINT_IPV4=""
+VPN_ENDPOINT_IPV6=""
+
+# Set this to the route table that contains the gateway route, or "auto".
+# "201" if you're using Ethernet, "202" for SFP+, and "203" for U-LTE.
+# Default is "auto" which works with WAN failover and automatically changes the 
+# endpoint via gateway route when the WAN or gateway routes changes.
+GATEWAY_TABLE="auto"
+
 # Options for custom table and chains.
 # These options need to be unique for each instance of openvpn if running multiple.
 ROUTE_TABLE=101

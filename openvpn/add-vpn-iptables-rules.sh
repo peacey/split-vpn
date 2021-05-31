@@ -36,14 +36,14 @@ delete_chains() {
 # add_rule IPV4/IPV6/both TABLE "RULE" (prefix=noprefix)
 # Add an iptables rule. 
 add_rule() {
-	if [[ "$4" = "noprefix" ]]; then
+	if [ "$4" = "noprefix" ]; then
 		prefix=""
 	else
 		prefix=${PREFIX}
 	fi
-	if [[ "$1" = "IPV4" ]]; then
+	if [ "$1" = "IPV4" ]; then
 		iptables -t $2 -C ${prefix}$3 &> /dev/null || iptables -t $2 -A ${prefix}$3
-	elif [[ "$1" = "IPV6" ]]; then
+	elif [ "$1" = "IPV6" ]; then
 		ip6tables -t $2 -C ${prefix}$3 &> /dev/null || ip6tables -t $2 -A ${prefix}$3
 	else
 		iptables -t $2 -C ${prefix}$3 &> /dev/null || iptables -t $2 -A ${prefix}$3
@@ -52,9 +52,9 @@ add_rule() {
 }
 
 # Get the first IPv4 DNS server provided by the VPN server's DHCP options if option is set.
-# These options are found in foreign_option_i. 
+# These options are found in environment variables foreign_option_i for openvpn.
 get_dns() {
-	if [[ "${DNS_IPV4_IP}" != "DHCP" ]]; then
+	if [ "${DNS_IPV4_IP}" != "DHCP" ]; then
 		return
 	fi
 	DNS_IPV4_IP=""
@@ -167,7 +167,7 @@ add_iptables_rules() {
 		proto=$(echo "$entry" | cut -d'-' -f1)
 		source_ip=$(echo "$entry" | cut -d'-' -f2)
 		sports=$(echo "$entry" | cut -d'-' -f3)
-		if [[ "$proto" = "both" ]]; then
+		if [ "$proto" = "both" ]; then
 			add_rule IPV4 mangle "PREROUTING -p tcp -s ${source_ip} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 			add_rule IPV4 mangle "PREROUTING -p udp -s ${source_ip} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 		else
@@ -178,7 +178,7 @@ add_iptables_rules() {
 		proto=$(echo "$entry" | cut -d'-' -f1)
 		source_ip=$(echo "$entry" | cut -d'-' -f2)
 		sports=$(echo "$entry" | cut -d'-' -f3)
-		if [[ "$proto" = "both" ]]; then
+		if [ "$proto" = "both" ]; then
 			add_rule IPV6 mangle "PREROUTING -p tcp -s ${source_ip} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 			add_rule IPV6 mangle "PREROUTING -p udp -s ${source_ip} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 		else
@@ -191,7 +191,7 @@ add_iptables_rules() {
 		proto=$(echo "$entry" | cut -d'-' -f1)
 		source_mac=$(echo "$entry" | cut -d'-' -f2)
 		sports=$(echo "$entry" | cut -d'-' -f3)
-		if [[ "$proto" = "both" ]]; then
+		if [ "$proto" = "both" ]; then
 			add_rule both mangle "PREROUTING -p tcp -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 			add_rule both mangle "PREROUTING -p udp -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 		else
@@ -249,25 +249,25 @@ add_iptables_rules() {
 		add_rule IPV6 nat "POSTROUTING -o ${dev} -j MASQUERADE"
 	fi
 
-	# Force DNS through VPN for VPN traffic or REJECT VPN DNS traffic.
+	# Force DNS from environment variables or REJECT VPN DNS traffic.
 	get_dns
 	for proto in udp tcp; do
-		if [[ "${DNS_IPV4_IP}" = "REJECT" ]]; then
+		if [ "${DNS_IPV4_IP}" = "REJECT" ]; then
 			add_rule IPV4 filter "INPUT -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 			add_rule IPV4 filter "FORWARD -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
-		elif [ ! -z "${DNS_IPV4_IP}" ]; then
+		elif [ -n "${DNS_IPV4_IP}" ]; then
 			add_rule IPV4 nat "PREROUTING -m mark --mark ${MARK} -p ${proto} ! -s ${DNS_IPV4_IP} ! -d ${DNS_IPV4_IP} --dport 53 -j DNAT --to ${DNS_IPV4_IP}:${DNS_IPV4_PORT:-53}"
-			if [ ! -z "${DNS_IPV4_INTERFACE}" ]; then
+			if [ -n "${DNS_IPV4_INTERFACE}" ]; then
 				add_rule IPV4 mangle "FORWARD -m mark --mark ${MARK} -d ${DNS_IPV4_IP} -p ${proto} --dport ${DNS_IPV4_PORT:-53} -j MARK --set-xmark 0x0"
 				ip route replace ${DNS_IPV4_IP} dev ${DNS_IPV4_INTERFACE} table ${ROUTE_TABLE}
 			fi
 		fi
-		if [[ "${DNS_IPV6_IP}" = "REJECT" ]]; then
+		if [ "${DNS_IPV6_IP}" = "REJECT" ]; then
 			add_rule IPV6 filter "INPUT -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
 			add_rule IPV6 filter "FORWARD -m mark --mark ${MARK} -p ${proto} --dport 53 -j REJECT"
-		elif [ ! -z "${DNS_IPV6_IP}" ]; then
+		elif [ -n "${DNS_IPV6_IP}" ]; then
 			add_rule IPV6 nat "PREROUTING -m mark --mark ${MARK} -p ${proto} ! -s ${DNS_IPV6_IP} ! -d ${DNS_IPV6_IP} --dport 53 -j DNAT --to [${DNS_IPV6_IP}]:${DNS_IPV6_PORT:-53}"
-			if [ ! -z "${DNS_IPV6_INTERFACE}" ]; then
+			if [ -n "${DNS_IPV6_INTERFACE}" ]; then
 				add_rule IPV6 mangle "FORWARD -m mark --mark ${MARK} -d ${DNS_IPV6_IP} -p ${proto} --dport ${DNS_IPV6_PORT:-53} -j MARK --set-xmark 0x0"
 				ip -6 route replace ${DNS_IPV6_IP} dev ${DNS_IPV6_INTERFACE} table ${ROUTE_TABLE}
 			fi
@@ -280,7 +280,7 @@ add_iptables_rules() {
 		dport_vpn=$(echo "$entry" | cut -d'-' -f2)
 		dest_ip=$(echo "$entry" | cut -d'-' -f3)
 		dport=$(echo "$entry" | cut -d'-' -f4)
-		if [[ "$proto" = "both" ]]; then
+		if [ "$proto" = "both" ]; then
 			add_rule IPV4 nat "PREROUTING -i ${dev} -p tcp --dport ${dport_vpn} -j DNAT --to-destination ${dest_ip}:${dport}"
 			add_rule IPV4 nat "PREROUTING -i ${dev} -p udp --dport ${dport_vpn} -j DNAT --to-destination ${dest_ip}:${dport}"
 		else
@@ -292,7 +292,7 @@ add_iptables_rules() {
 		dport_vpn=$(echo "$entry" | cut -d'-' -f2)
 		dest_ip=$(echo "$entry" | cut -d'-' -f3)
 		dport=$(echo "$entry" | cut -d'-' -f4)
-		if [[ "$proto" = "both" ]]; then
+		if [ "$proto" = "both" ]; then
 			add_rule IPV6 nat "PREROUTING -i ${dev} -p tcp --dport ${dport_vpn} -j DNAT --to-destination [${dest_ip}]:${dport}"
 			add_rule IPV6 nat "PREROUTING -i ${dev} -p udp --dport ${dport_vpn} -j DNAT --to-destination [${dest_ip}]:${dport}"
 		else
@@ -338,18 +338,23 @@ else
 fi
 
 # When this script is called from updown.sh, first argument is either up or down.
-if [[ "$1" = "up" ]]; then
+if [ "$1" = "up" ]; then
 	if [ "${KILLSWITCH}" = 1 ]; then
 		add_killswitch
 	fi
 	create_chains
 	add_iptables_rules
-elif [[ "$1" = "down" ]]; then
+elif [ "$1" = "down" ]; then
 	if [ "${REMOVE_KILLSWITCH_ON_EXIT}" = 1 ]; then
 		delete_chains
 		delete_killswitch
 	fi
-elif [[ "$1" = "force-down" ]]; then
+elif [ "$1" = "force-down" ]; then
 	delete_chains
 	delete_killswitch
+fi
+
+# Flush conntrack if forcing any local interfaces
+if [ -n "$FORCED_LOCAL_INTERFACE" ]; then
+	conntrack -F &> /dev/null
 fi
