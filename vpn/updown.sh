@@ -55,8 +55,8 @@ get_gateway() {
 	for table in ${tables}; do
 		gateway_ipv4_old="${gateway_ipv4}"
 		gateway_ipv6_old="${gateway_ipv6}"
-		gateway_ipv4=$(ip route show table ${table} default | sed -En s/".*default ((via [^ ]+ )?dev [^ ]+).*"/"\1"/p | tail -n1)
-		gateway_ipv6=$(ip -6 route show table ${table} default | sed -En s/".*default ((via [^ ]+ )?dev [^ ]+).*"/"\1"/p | tail -n1)
+		gateway_ipv4=$(ip route show table ${table} 0.0.0.0/0 | sed -En s/".*default ((via [^ ]+ )?dev [^ ]+).*"/"\1"/p | tail -n1)
+		gateway_ipv6=$(ip -6 route show table ${table} ::/0 | sed -En s/".*default ((via [^ ]+ )?dev [^ ]+).*"/"\1"/p | tail -n1)
 		if [ -n "${gateway_ipv4}" ]; then
 			current_table="${table}"
 			break
@@ -143,6 +143,9 @@ add_gateway_route() {
 # Add blackhole routes so if VPN routes are deleted everything is rejected
 # Helps to prevent leaks during VPN restarts.
 add_blackhole_routes() {
+	if [ "${DISABLE_BLACKHOLE}" = "1" ]; then
+		return
+	fi
 	ip route replace blackhole default table ${ROUTE_TABLE}
 	ip -6 route replace blackhole default table ${ROUTE_TABLE}
 }
@@ -215,15 +218,14 @@ if [ "$state" = "force-down" ]; then
 	sh ${iptables_script} force-down $tun
 	echo "Forced $tun down. Deleted killswitch and rules."
 elif [ "$state" = "pre-up" ]; then
+	delete_all_routes
 	add_blackhole_routes
 	sh ${iptables_script} up $tun
 	run_rule_watcher
 elif [ "$state" = "up" ]; then
-	if [ "${VPN_PROVIDER}" = "openvpn" ]; then
-		add_blackhole_routes
-		if [ "${script_context}" != "restart" ]; then
-			add_vpn_routes
-		fi
+	add_blackhole_routes
+	if [ "${VPN_PROVIDER}" = "openvpn" -a "${script_context}" != "restart" ]; then
+		add_vpn_routes
 	fi
 	add_gateway_route
 	sh ${iptables_script} up $tun
