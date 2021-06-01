@@ -26,7 +26,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
 ## How do I use this?
 
 <details>
-  <summary>Click here to see the instructions.</summary>
+  <summary>Click here to see the instructions for OpenVPN.</summary>
 
 1. SSH into the UDM/P (assuming it's on 192.168.1.254).
 
@@ -34,22 +34,22 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     ssh root@192.168.1.254
     ```
     
-2. Download the scripts package and extract it to `/mnt/data/split-vpn/openvpn`.
+2. Download the scripts package and extract it to `/mnt/data/split-vpn/vpn`.
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/openvpn
+    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/vpn
     cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/openvpn/*" -o -j -d openvpn && chmod +x openvpn/*.sh
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/vpn/*" -o -j -d vpn && chmod +x vpn/*.sh
     ```
     
-3. Create a directory for your VPN provider's openvpn configuration files, and copy your VPN's configuration files (certificates, config, password files, etc) and the sample vpn.conf from `/mnt/data/split-vpn/openvpn/vpn.conf.sample`. NordVPN is used below as an example. 
+3. Create a directory for your VPN provider's openvpn configuration files, and copy your VPN's configuration files (certificates, config, password files, etc) and the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`. NordVPN is used below as an example. 
 
     ```sh
-    mkdir /mnt/data/split-vpn/openvpn/nordvpn
+    mkdir -p /mnt/data/split-vpn/openvpn/nordvpn
     cd /mnt/data/split-vpn/openvpn/nordvpn
     curl https://downloads.nordcdn.com/configs/files/ovpn_legacy/servers/us-ca12.nordvpn.com.udp1194.ovpn --out nordvpn.ovpn
-    cp /mnt/data/split-vpn/openvpn/vpn.conf.sample /mnt/data/split-vpn/openvpn/nordvpn/vpn.conf
+    cp /mnt/data/split-vpn/vpn/vpn.conf.sample /mnt/data/split-vpn/openvpn/nordvpn/vpn.conf
     ```
     
 4. If your VPN provider uses a username/password, put them in a `username_password.txt` file in the same directory as the configuration with the username on the first line and password on the second line. Then either: 
@@ -63,8 +63,8 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     ```sh
     openvpn --config nordvpn.ovpn \
             --route-noexec \
-            --up /mnt/data/split-vpn/openvpn/updown.sh \
-            --down /mnt/data/split-vpn/openvpn/updown.sh \
+            --up /mnt/data/split-vpn/vpn/updown.sh \
+            --down /mnt/data/split-vpn/vpn/updown.sh \
             --script-security 2
     ```
     
@@ -87,8 +87,8 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     ```sh
     nohup openvpn --config nordvpn.ovpn \
                   --route-noexec \
-                  --up /mnt/data/split-vpn/openvpn/updown.sh \
-                  --down /mnt/data/split-vpn/openvpn/updown.sh \
+                  --up /mnt/data/split-vpn/vpn/updown.sh \
+                  --down /mnt/data/split-vpn/vpn/updown.sh \
                   --script-security 2 \
                   --ping-restart 15 \
                   --mute-replay-warnings > openvpn.log &
@@ -100,10 +100,192 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
 
 </details>
 
+<details>
+  <summary>Click here to see the instructions for WireGuard (kernel module).</summary>
+
+  * Prerequisuite: Make sure the WireGuard kernel module is installed via either [wireguard-kmod](https://github.com/tusc/wireguard-kmod) or a [custom kernel](https://github.com/fabianishere/udm-kernel-tools). The WireGuard tools (wg-quick, wg) also need to be installed (included with wireguard-kmod) and accessible from your PATH.
+  * Test the installation of the module by SSHing into the UDM/P and running `modprobe wireguard` which should return nothing and no errors, and running `wg-quick` which should return the help and no errors. 
+  
+1. SSH into the UDM/P (assuming it's on 192.168.1.254).
+
+    ```sh
+    ssh root@192.168.1.254
+    ```
+  
+2. Download the scripts package and extract it to `/mnt/data/split-vpn/vpn`.
+
+    ```sh
+    cd /mnt/data
+    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/vpn
+    cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/vpn/*" -o -j -d vpn && chmod +x vpn/*.sh
+    ```
+    
+3. Create a directory for your WireGuard configuration files, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`, and copy your WireGuard configuration file (wg0.conf) or create it. As an example below, we are creating the wg0.conf file that mullvad provides and pasting the contents into it. You can use any name for your config instead of wg0 (e.g.: mullvad-ca2.conf) and this will be the interface name of the wireguard tunnel. 
+  
+    ```sh
+    mkdir -p /mnt/data/split-vpn/wireguard/mullvad
+    cd /mnt/data/split-vpn/wireguard/mullvad
+    cp /mnt/data/split-vpn/vpn/vpn.conf.sample /mnt/data/split-vpn/wireguard/mullvad/vpn.conf
+    vim wg0.conf [Press 'i' to start editing, right click -> paste, press 'ESC' to exit insert mode, type ':wq' to save and exit].
+    ```
+  
+4. In your WireGuard config (wg0.conf), set PreUp, PostUp, and PreDown to point to the updown.sh script, and Table to a custom route table number that you will use in this script's vpn.conf. Here is an exmaple wg0.conf file:
+  
+    ```
+    [Interface]
+    PrivateKey = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    Address = 10.68.1.88/32,fc00:dddd:eeee:bb01::5:6666/128
+    PreUp = sh /mnt/data/wireguard/updown.sh %i pre-up
+    PostUp = sh /mnt/data/wireguard/updown.sh %i up
+    PreDown = sh /mnt/data/wireguard/updown.sh %i down
+    Table = 101
+
+    [Peer]
+    PublicKey = yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+    AllowedIPs = 0.0.0.0/1,128.0.0.0/1,::/1,8000::/1
+    Endpoint = [2607:f7a0:d:4::a02f]:51820
+    ```
+  
+    In the above config, make sure to:
+      * Comment out or remove the `DNS` line. Use the DNS settings in your `vpn.conf` file instead if you want to force your clients to use a certain DNS server. 
+      * Set AllowedIPs to `0.0.0.0/1,128.0.0.0/1,::/1,8000::/1` to allow all traffic through the VPN. Do not use `0.0.0.0/0,::/0` because it will interfere with the blackhole routes and won't allow wireguard to start. If you prefer to use `0.0.0.0/0,::/0`, then set `DISABLE_BLACKHOLE=1` in your `vpn.conf` file.
+      * Remove any extra PreUp/PostUp/PreDown/PostDown lines that could interfere with the VPN script. 
+
+5. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
+  
+   * The option `VPN_PROVIDER` is set to "external".
+   * The option `DEV` is set to "wg0" or your wireguard's interface (i.e. the wireguard configuration filename without .conf -- wg0 in this example).
+   * The option `ROUTE_TABLE` is the same number as `Table` in your `wg0.conf` file.
+   * The option `VPN_ENDPOINT_IPV4` or `VPN_ENDPOINT_IPV6` is set to your WireGuard server's IP as defined in `wg0.conf`'s `Endpoint` variable.
+   * The option `DNS_IPV4_IP` and/or `DNS_IPV6_IP` is set to the DNS server you want to force for your clients, or set them to empty if you do not want to force any DNS. 
+  
+6. Run wg-quick to start wireguard with your configuration and test if the connection worked. 
+
+    ```sh
+    wg-quick up wg0.conf
+    ```
+  
+    * Type `wg` to check your WireGuard connection and make sure you received a handshake. No handshake indicates something is wrong with your wireguard configuration.
+    * If you need to bring down the WireGuard tunnel, run `wg-quick down wg0.conf` in this folder.
+    * Note that wg-quick up/down commands need to be run from this folder so the script can pick up the correct configuration file.
+    
+7. If the connection works, check each client to make sure they are on the VPN by doing the following.
+
+    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+    
+      ```sh
+      curl -4 ifconfig.co
+      curl -6 ifconfig.co
+      ```
+        
+      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
+
+    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
+    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
+    
+8. If you want to block Internet access to forced clients if the wireguard tunnel is brought down via wg-quick, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
+    
+9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+
+10. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+
+</details>
+
+<details>
+  <summary>Click here to see the instructions for wireguard-go (software implementation).</summary>
+
+  * Prerequisuite: Make sure the wireguard-go container is installed as instructed at the [wireguard-go repo](https://github.com/boostchicken/udm-utilities/tree/master/wireguard-go).
+  
+1. SSH into the UDM/P (assuming it's on 192.168.1.254).
+
+    ```sh
+    ssh root@192.168.1.254
+    ```
+  
+2. Download the scripts package and extract it to `/mnt/data/split-vpn/vpn`.
+
+    ```sh
+    cd /mnt/data
+    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/vpn
+    cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/vpn/*" -o -j -d vpn && chmod +x vpn/*.sh
+    ```
+    
+3. Create a directory for your WireGuard configuration files, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`, and copy your WireGuard configuration file (wg0.conf) or create it. As an example below, we are creating the wg0.conf file that mullvad provides and pasting the contents into it. You can use any name for your config instead of wg0 (e.g.: mullvad-ca2.conf) and this will be the interface name of the wireguard tunnel. 
+  
+    ```sh
+    mkdir -p /mnt/data/split-vpn/wireguard/mullvad
+    cd /mnt/data/split-vpn/wireguard/mullvad
+    cp /mnt/data/split-vpn/vpn/vpn.conf.sample /mnt/data/split-vpn/wireguard/mullvad/vpn.conf
+    vim wg0.conf [Press 'i' to start editing, right click -> paste, press 'ESC' to exit insert mode, type ':wq' to save and exit].
+    ```
+  
+4. In your WireGuard config (wg0.conf), set PreDown and PostUp to point to the updown.sh script, and Table to a custom route table number that you will use in this script's vpn.conf. Here is an exmaple wg0.conf file:
+  
+    ```
+    [Interface]
+    PrivateKey = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    Address = 10.68.1.88/32,fc00:dddd:eeee:bb01::5:6666/128
+    PostUp = sh /mnt/data/wireguard/updown.sh %i up
+    PreDown = sh /mnt/data/wireguard/updown.sh %i down
+    Table = 101
+
+    [Peer]
+    PublicKey = yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+    AllowedIPs = 0.0.0.0/0,::0/0
+    Endpoint = [2607:f7a0:d:4::a02f]:51820
+    ```
+  
+    In the above config, make sure to:
+      * Comment out or remove the `DNS` line. Use the DNS settings in your `vpn.conf` file instead if you want to force your clients to use a certain DNS server. 
+      * Set AllowedIPs to `0.0.0.0/0,::0/0` to allow all traffic through the VPN.
+      * Remove any extra PreUp/PostUp/PreDown/PostDown lines that could interfere with the VPN script. 
+
+5. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
+  
+   * The option `VPN_PROVIDER` is set to "external".
+   * The option `DEV` is set to "wg0" or your wireguard's interface (i.e. the wireguard configuration filename without .conf -- wg0 in this example).
+   * The option `ROUTE_TABLE` is the same number as `Table` in your `wg0.conf` file.
+   * The option `VPN_ENDPOINT_IPV4` or `VPN_ENDPOINT_IPV6` is set to your WireGuard server's IP as defined in `wg0.conf`'s `Endpoint` variable.
+   * The option `DNS_IPV4_IP` and/or `DNS_IPV6_IP` is set to the DNS server you want to force for your clients, or set them to empty if you do not want to force any DNS. 
+  
+6. Run wg-quick to start wireguard with your configuration and test if the connection worked. 
+
+    ```sh
+    wg-quick up wg0.conf
+    ```
+  
+    * Type `wg` to check your WireGuard connection and make sure you received a handshake. No handshake indicates something is wrong with your wireguard configuration.
+    * If you need to bring down the WireGuard tunnel, run `wg-quick down wg0.conf` in this folder.
+    * Note that wg-quick up/down commands need to be run from this folder so the script can pick up the correct configuration file.
+    
+7. If the connection works, check each client to make sure they are on the VPN by doing the following.
+
+    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+    
+      ```sh
+      curl -4 ifconfig.co
+      curl -6 ifconfig.co
+      ```
+        
+      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
+
+    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
+    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
+    
+8. If you want to block Internet access to forced clients if the wireguard tunnel is brought down via wg-quick, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
+    
+9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+
+10. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+
+</details>
+
 ## How do I run this at boot?
 
 <details>
-  <summary>Click here to see the instructions.</summary>
+  <summary>Click here to see the instructions for OpenVPN.</summary>
   
   You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-utilities/tree/master/on-boot-script) to run the VPN script at boot. The boot script survives across firmware upgrades too. 
   
