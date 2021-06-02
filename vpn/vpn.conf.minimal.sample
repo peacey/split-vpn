@@ -20,8 +20,9 @@ EXEMPT_SOURCE_MAC=""
 # to their own DNS servers. Redirection to other IPs might not work on all providers,
 # except for DNS redirects to a local address, or rejecting DNS traffic completely. 
 #
-# IPV4 Format: [IP] to redirect to IP, "DHCP" to obtain DNS from VPN DHCP options, 
-# "REJECT" to reject all DNS traffic.
+# IPV4 Format: [IP] to redirect to IP, "DHCP" if using OpenVPN to obtain DNS from 
+# DHCP options, or "REJECT" to reject all DNS traffic. "DHCP" is not supported on 
+# other VPN types like wireguard/external.
 #
 # Example: Get DNS from DHCP
 DNS_IPV4_IP="DHCP"

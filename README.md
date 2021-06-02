@@ -967,7 +967,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   <details>
     <summary>DNS_IPV4_IP, DNS_IPV4_PORT</summary>
       Redirect DNS IPv4 traffic of VPN-forced clients to this IP and port.
-      If set to "DHCP", the DNS will try to be obtained from the DHCP options that the VPN sends. 
+      If set to "DHCP", the DNS will try to be obtained from the DHCP options that OpenVPN sends. DHCP option is only supported on OpenVPN.
       If set to "REJECT", DNS requests over IPv6 will be blocked instead. 
       Note that many VPN providers redirect all DNS traffic to their servers, so redirection to other IPs might not work on all providers.
       DNS redirects to a local address, or rejecting DNS traffic works for all providers.
