@@ -522,6 +522,21 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
 </details>  
 
 <details>
+  <summary>I cannot access my WAN IP from a VPN-forced client (i.e. hairpin NAT does not work). What do I do?</summary>
+
+  * In order for hairpin NAT to work, you need to exempt your WAN IPs from the VPN. You can do this in one of two ways:
+  
+    * If your WAN IP address is static and doesn't change, add your WAN's IPv4 address to `EXEMPT_DESTINATIONS_IPV4` and your IPv6 address to `EXEMPT_DESTINATIONS_IPV6`.
+  
+    * If your WAN IP changes often and you do not want to keep updating it in the script, exempt the Unifi provided IP sets that store your IPs by using the `EXEMPT_IPSETS` option. These IP sets are labelled `UBIOS_ADDRv4_<interface>`/`UBIOS_ADDRv6_<interface>` and are dynamically updated by Unifi when your WAN IP changes. For example, to exempt the WAN IP of eth8, use the following option. Note that for prefix delegation, the WAN IPv6 addresses are stored on the bridge interfaces, not the eth interfaces so make sure to add the bridge interface for IPv6 hairpin NAT. 
+  
+      ```sh
+      EXEMPT_IPSETS="UBIOS_ADDRv4_eth8:dst UBIOS_ADDRv4_br0:dst UBIOS_ADDRv6_br0:dst"
+      ```
+  
+</details>  
+
+<details>
   <summary>How do I safely shutdown the VPN?</summary>
     
   * Run the following commands for your VPN type to bring down the VPN. Kill switch and iptables rules will only be removed if the option `REMOVE_KILLSWITCH_ON_EXIT` is set to 1.
@@ -858,12 +873,14 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   <details>
     <summary>EXEMPT_IPSETS</summary>
       Exempt these IP sets from the VPN. IP sets need to be created before this script is run or the script will error. IP sets can be updated externally and will be matched dynamically. Each IP set entry consists of the IP set name and whether to match on source or destination for each field in the IP set. 
+      You can also use this option to allow NAT hairpin to work while on the VPN by adding the Unifi-provided IP sets for the interface to this variable. For example, for eth8 WAN, IP sets are UBIOS_ADDRv4_eth8 and UBIOS_ADDRv6_eth8.
     
       Note: These IP sets will be exempt for every VPN-forced client. If you want to exempt different IP sets for different clients, use `CUSTOM_EXEMPT_RULES_IPV4` and  `CUSTOM_EXEMPT_RULES_IPV6` below.
     
       src/dst needs to be specified for each IP set field.
       Format: Format: [IPSet Name]:[src/dst,src/dst,...]
       Example: EXEMPT_IPSETS="VPN_EXEMPT:dst IPSET_NAME:src,dst"
+               EXEMPT_IPSETS="UBIOS_ADDRv4_eth8:dst UBIOS_ADDRv4_br0:dst UBIOS_ADDRv6_br0:dst"
 
   </details>
   
