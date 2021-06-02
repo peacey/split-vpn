@@ -44,6 +44,11 @@ EXEMPT_DESTINATIONS_IPV6=""
 # IP sets can be updated externally and will be matched dynamically. 
 # Each IP set entry consists of the IP set name and whether to match on source 
 # or destination. src/dst needs to be specified for each IP set field.
+#
+# You can also use this option to allow NAT hairpin to work while on the VPN
+# by adding the Unifi IP sets for the interface to the EXEMPT_IPSETS variable.
+# For example, for eth8 WAN, IP sets are UBIOS_ADDRv4_eth8 and UBIOS_ADDRv6_eth8.
+#
 # Format: [IPSet Name]:[src/dst,src/dst,...]
 FORCED_IPSETS=""
 EXEMPT_IPSETS=""
