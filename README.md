@@ -361,11 +361,11 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
     # Load configuration and run openvpn
     cd /mnt/data/split-vpn/openvpn/nordvpn
     source ./vpn.conf
-    /mnt/data/split-vpn/openvpn/updown.sh ${DEV} pre-up &> pre-up.log
+    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
     nohup openvpn --config nordvpn.ovpn \
                   --route-noexec \
-                  --up /mnt/data/split-vpn/openvpn/updown.sh \
-                  --down /mnt/data/split-vpn/openvpn/updown.sh \
+                  --up /mnt/data/split-vpn/vpn/updown.sh \
+                  --down /mnt/data/split-vpn/vpn/updown.sh \
                   --dev-type tun --dev ${DEV} \
                   --script-security 2 \
                   --ping-restart 15 \
