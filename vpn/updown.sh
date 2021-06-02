@@ -220,7 +220,7 @@ if [ "$state" = "force-down" ]; then
 elif [ "$state" = "pre-up" ]; then
 	delete_all_routes
 	add_blackhole_routes
-	sh ${iptables_script} up $tun
+	sh ${iptables_script} pre-up $tun
 	run_rule_watcher
 elif [ "$state" = "up" ]; then
 	add_blackhole_routes

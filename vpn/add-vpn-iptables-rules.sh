@@ -4,7 +4,7 @@
 # Exit if an error is encountered
 set -e 
 
-# ./add-vpn-iptables-rules.sh [up/down/force-down] [tun_dev]
+# ./add-vpn-iptables-rules.sh [pre-up/up/down/force-down] [tun_dev]
 
 CHAINS="mangle:PREROUTING mangle:POSTROUTING mangle:FORWARD mangle:OUTPUT nat:PREROUTING nat:POSTROUTING filter:INPUT filter:FORWARD"
 
@@ -147,9 +147,11 @@ add_iptables_rules() {
 	)
 
 	# Force traffic through VPN for local output interfaces
-	for intfc in ${FORCED_LOCAL_INTERFACE}; do 
-		add_rule both mangle "OUTPUT -o ${intfc} -j MARK --set-xmark ${MARK}"
-	done
+	if [ "$state" != "pre-up" ]; then
+		for intfc in ${FORCED_LOCAL_INTERFACE}; do 
+			add_rule both mangle "OUTPUT -o ${intfc} -j MARK --set-xmark ${MARK}"
+		done
+	fi
 
 	# Exempt sources from VPN
 	for ip in ${EXEMPT_SOURCE_IPV4}; do
@@ -337,19 +339,21 @@ else
 	dev="$2"
 fi
 
+state="$1"
+
 # When this script is called from updown.sh, first argument is either up or down.
-if [ "$1" = "up" ]; then
+if [ "$state" = "up" ]; then
 	if [ "${KILLSWITCH}" = 1 ]; then
 		add_killswitch
 	fi
 	create_chains
 	add_iptables_rules
-elif [ "$1" = "down" ]; then
+elif [ "$state" = "down" ]; then
 	if [ "${REMOVE_KILLSWITCH_ON_EXIT}" = 1 ]; then
 		delete_chains
 		delete_killswitch
 	fi
-elif [ "$1" = "force-down" ]; then
+elif [ "$state" = "force-down" ]; then
 	delete_chains
 	delete_killswitch
 fi
