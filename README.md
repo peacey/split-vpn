@@ -139,9 +139,9 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     [Interface]
     PrivateKey = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     Address = 10.68.1.88/32,fc00:dddd:eeee:bb01::5:6666/128
-    PreUp = sh /mnt/data/wireguard/updown.sh %i pre-up
-    PostUp = sh /mnt/data/wireguard/updown.sh %i up
-    PreDown = sh /mnt/data/wireguard/updown.sh %i down
+    PreUp = sh /mnt/data/split-vpn/vpn/updown.sh %i pre-up
+    PostUp = sh /mnt/data/split-vpn/vpn/updown.sh %i up
+    PreDown = sh /mnt/data/split-vpn/vpn/updown.sh %i down
     Table = 101
 
     [Peer]
