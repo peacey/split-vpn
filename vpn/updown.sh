@@ -14,8 +14,11 @@ kill_rule_watcher() {
 			kill -9 $p
 		fi
 	done
-	ip rule del $ip_rule &> /dev/null || true
-	ip -6 rule del $ip_rule &> /dev/null || true
+	# Only delete the rules if not in pre-up or up hook
+	if [ "$state" != "pre-up" -a "$state" != "up" ]; then
+		ip rule del $ip_rule &> /dev/null || true
+		ip -6 rule del $ip_rule &> /dev/null || true
+	fi
 }
 
 # Run the rule watcher which will be used to re-add the policy-based ip rules
@@ -218,8 +221,8 @@ if [ "$state" = "force-down" ]; then
 	sh ${iptables_script} force-down $tun
 	echo "Forced $tun down. Deleted killswitch and rules."
 elif [ "$state" = "pre-up" ]; then
-	delete_all_routes
 	add_blackhole_routes
+	delete_vpn_routes
 	sh ${iptables_script} pre-up $tun
 	run_rule_watcher
 elif [ "$state" = "up" ]; then
