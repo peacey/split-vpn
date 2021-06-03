@@ -9,13 +9,16 @@ set -e
 
 # Kill the rule watcher (previously running up/down script for the tunnel device).
 kill_rule_watcher() {
-	for p in $(pgrep -f "/bin/sh.*$(basename "$0") ${dev}"); do
+	for p in $(pgrep -f "sh.*$(basename "$0") $tun "); do
 		if [ $p != $$ ]; then
 			kill -9 $p
 		fi
 	done
-	ip rule del $ip_rule &> /dev/null || true
-	ip -6 rule del $ip_rule &> /dev/null || true
+	# Only delete the rules if not in pre-up or up hook
+	if [ "$state" != "pre-up" -a "$state" != "up" ]; then
+		ip rule del $ip_rule &> /dev/null || true
+		ip -6 rule del $ip_rule &> /dev/null || true
+	fi
 }
 
 # Run the rule watcher which will be used to re-add the policy-based ip rules
@@ -33,26 +36,35 @@ run_rule_watcher() {
 					echo "[$(date)] Removed blackhole ${route}."
 			done
 		fi
- 		sleep 1
+		if [ -z "${GATEWAY_TABLE}" -o "${GATEWAY_TABLE}" = "auto" ]; then
+			add_gateway_route
+		fi
+ 		sleep ${WATCHER_TIMER}
 	done) > rule-watcher.log &
 }
 
-# Get the gateway from the UDMP custom WAN table. This function checks the active WAN.
-# 202 = WAN2 table, 201 = WAN1 table on UDMP.
-# TODO: Does the UDM (non-pro) use the same table numbers?
+# Get the gateway from the UDM/P custom WAN table..
+# 201 = Ethernet table, 202 = SFP+ table, 203 = U-LTE.
 get_gateway() {
-	if [ -z "${route_net_gateway_ip}" ] && [ -z "${route_net_gateway_dev}" ]; then
-		for table in 201 202; do
-			route_net_gateway_ip=$(ip route show table ${table} | grep "default.*via" | sed -E s/".* via ([0-9\.]+) .*"/"\1"/g)
-			route_net_gateway_dev=$(ip route show table ${table} | grep "default.*dev" | sed -E s/".* dev ([^ ]+) .*"/"\1"/g)
-			if [ -n "${route_net_gateway_ip}" ] || [ -n "${route_net_gateway_dev}" ]; then
-				break
-			fi
-		done
+	tables=""
+	if [ -z "${GATEWAY_TABLE}" -o "${GATEWAY_TABLE}" = "auto"  ]; then
+		tables=$(ip rule | sed -En s/".*from all lookup (20[123]).*"/"\1"/p | tail -n1)
+	elif [ -n "$GATEWAY_TABLE" ]; then
+		tables="$GATEWAY_TABLE"
 	fi
-	if [ -z "${route_net_gateway_ip}" ] && [ -z "${route_net_gateway_dev}" ]; then
-		echo "$(date +'%a %b %d %H:%M:%S %Y') $(basename "$0"): No default gateway found."
+	if [ -z "${tables}" ]; then
+		tables="201 202 203"
 	fi
+	for table in ${tables}; do
+		gateway_ipv4_old="${gateway_ipv4}"
+		gateway_ipv6_old="${gateway_ipv6}"
+		gateway_ipv4=$(ip route show table ${table} 0.0.0.0/0 | sed -En s/".*default ((via [^ ]+ )?dev [^ ]+).*"/"\1"/p | tail -n1)
+		gateway_ipv6=$(ip -6 route show table ${table} ::/0 | sed -En s/".*default ((via [^ ]+ )?dev [^ ]+).*"/"\1"/p | tail -n1)
+		if [ -n "${gateway_ipv4}" ]; then
+			current_table="${table}"
+			break
+		fi
+	done
 }
 
 # netmask_to_cidr [mask]
@@ -66,11 +78,11 @@ netmask_to_cidr() {
     echo "${num_bits}"
 }
 
-# Add the VPN routes to the custom table.
+# Add the VPN routes to the custom table for OpenVPN provider.
+# OpneVPN will pass route_* and dev environment variables to this script.
 add_vpn_routes() {
-	# Flush route table first and get the current non-VPN gateway.
+	# Flush route table first
 	delete_vpn_routes
-	get_gateway
 
 	# Add default route to VPN
 	ip route replace 0.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
@@ -106,13 +118,27 @@ add_vpn_routes() {
 			ip -6 route replace ${route_ipv6_network_i} dev ${dev} table ${ROUTE_TABLE}
 		fi
 	done
-	if [ -n "${trusted_ip}" ]; then
-		if [ -n "${route_net_gateway_ip}" ] && [ -n "${route_net_gateway_dev}" ]; then
-			ip route replace ${trusted_ip}/32 via ${route_net_gateway_ip} dev ${route_net_gateway_dev} table ${ROUTE_TABLE}
-		elif [ -n "${route_net_gateway_ip}" ]; then
-			ip route replace ${trusted_ip}/32 via ${route_net_gateway_ip} table ${ROUTE_TABLE}
-		elif [ -n "${route_net_gateway_dev}" ]; then
-			ip route replace ${trusted_ip}/32 dev ${route_net_gateway_dev} table ${ROUTE_TABLE}
+}
+
+# Add the VPN endpoint -> WAN gateway route.
+add_gateway_route() {
+	get_gateway
+	if [ -n "${trusted_ip}" -a "${VPN_PROVIDER}" = "openvpn" ]; then
+		VPN_ENDPOINT_IPV4="${trusted_ip}"
+	fi
+	if [ -n "${trusted_ip6}" -a "${VPN_PROVIDER}" = "openvpn" ]; then
+		VPN_ENDPOINT_IPV6="${trusted_ip6}"
+	fi
+	if [ -n "${VPN_ENDPOINT_IPV4}" -a -n "${gateway_ipv4}" ]; then
+		if [ "${gateway_ipv4}" != "${gateway_ipv4_old}" ]; then
+			echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: Using IPv4 gateway from table ${current_table}: ${gateway_ipv4}."
+			ip route replace ${VPN_ENDPOINT_IPV4} ${gateway_ipv4} table ${ROUTE_TABLE} || true
+		fi
+	fi
+	if [ -n "${VPN_ENDPOINT_IPV6}" -a -n "${gateway_ipv6}" ]; then
+		if [ "${gateway_ipv6}" != "${gateway_ipv6_old}" ]; then
+			echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: Using IPv6 gateway from table ${current_table}: ${gateway_ipv6}."
+			ip -6 route replace ${VPN_ENDPOINT_IPV6} ${gateway_ipv6} table ${ROUTE_TABLE} || true
 		fi
 	fi
 }
@@ -120,6 +146,9 @@ add_vpn_routes() {
 # Add blackhole routes so if VPN routes are deleted everything is rejected
 # Helps to prevent leaks during VPN restarts.
 add_blackhole_routes() {
+	if [ "${DISABLE_BLACKHOLE}" = "1" ]; then
+		return
+	fi
 	ip route replace blackhole default table ${ROUTE_TABLE}
 	ip -6 route replace blackhole default table ${ROUTE_TABLE}
 }
@@ -143,8 +172,13 @@ delete_all_routes() {
 
 # If configuration variables are not present, source config file from the PWD.
 if [ -z "${MARK}" ]; then
-	echo "Loading configuration from ${PWD}/vpn.conf."
+	echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: Loading configuration from ${PWD}/vpn.conf."
 	source ./vpn.conf
+fi
+
+# If no provider was given, assume openvpn for backwards compatibility.
+if [ -z "${VPN_PROVIDER}" ]; then
+	VPN_PROVIDER="openvpn"
 fi
 
 # Use the iptables script stored in the directory of this script.
@@ -153,39 +187,62 @@ iptables_script="$(dirname "$0")/add-vpn-iptables-rules.sh"
 # Construct the ip rule.
 ip_rule="fwmark ${MARK} lookup ${ROUTE_TABLE} pref ${PREF}"
 
-# Startup blackholes to remove
+# Startup blackholes to remove.
 startup_blackholes="0.0.0.0/1 128.0.0.0/1 ::/1 8000::/1"
+
+# Initialize gateway routes to undefined.
+gateway_ipv4=undefined
+gateway_ipv6=undefined
+
+# Assume 1 second timer for watcher if not defined.
+if [ -z "${WATCHER_TIMER}" ]; then
+	WATCHER_TIMER=1
+fi
+
+# Get tunnel and state from script arguments, or use environment
+# variables if they exist for openvpn. 
+if [ ${VPN_PROVIDER} = "openvpn" -a -n "${dev}" ]; then
+	tun="${dev}"
+else
+	tun="$1"
+fi
+if [ ${VPN_PROVIDER} = "openvpn" -a -n "${script_type}" ]; then
+	state="${script_type}"
+else
+	state="$2"
+fi
 
 # When OpenVPN calls this script, script_type is either up or down.
 # This script might also be manually called with force-down to force shutdown 
 # regardless of KILLSWITCH settings.
-if [[ "$2" = "force-down" ]]; then
+if [ "$state" = "force-down" ]; then
 	kill_rule_watcher
 	delete_all_routes
-	sh ${iptables_script} force-down $1
-	echo "Forced $1 down. Deleted killswitch and rules."
-elif [[ "$2" = "pre-up" ]]; then
+	sh ${iptables_script} force-down $tun
+	echo "Forced $tun down. Deleted killswitch and rules."
+elif [ "$state" = "pre-up" ]; then
 	add_blackhole_routes
-	sh ${iptables_script} up $1
+	sh ${iptables_script} pre-up $tun
 	run_rule_watcher
-elif [[ "${script_type}" = "up" ]]; then
+elif [ "$state" = "up" ]; then
 	add_blackhole_routes
-	if [ "${script_context}" != "restart" ]; then
+	if [ "${VPN_PROVIDER}" = "openvpn" -a "${script_context}" != "restart" ]; then
 		add_vpn_routes
 	fi
-	sh ${iptables_script} up ${dev}
+	add_gateway_route
+	sh ${iptables_script} up $tun
 	run_rule_watcher
 else
-	if [ "${script_context}" != "restart" ]; then
-   		delete_vpn_routes
+	if [ "${VPN_PROVIDER}" = "openvpn" -a "${script_context}" != "restart" ]; then
+		delete_vpn_routes
 	fi
-	# Only delete the rules if option is set.
+	# Only delete the rules if remove killswitch option is set.
 	if [ "${REMOVE_KILLSWITCH_ON_EXIT}" = 1 ]; then
 		# Kill the rule checking daemon.
 		kill_rule_watcher
-		if [ "${script_context}" != "restart" ]; then
-                	delete_all_routes
-        	fi
-		sh ${iptables_script} down ${dev}
+		if [ "${VPN_PROVIDER}" = "openvpn" -a "${script_context}" != "restart" ]; then
+			delete_all_routes
+		fi
+		sh ${iptables_script} down $tun
 	fi
 fi
