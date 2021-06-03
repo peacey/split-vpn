@@ -401,6 +401,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
     source ./vpn.conf
     /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
     wg-quick up ./${DEV}.conf &> wireguard.log
+    cat wireguard.log
     ```
 
     * Comment out the pre-up line if you want your forced clients to be able to access the Internet if wireguard fails to start (i.e. commenting it out doesn't enable the iptables kill switch until after the VPN tunnel is brought up).
