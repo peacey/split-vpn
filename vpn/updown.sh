@@ -222,7 +222,6 @@ if [ "$state" = "force-down" ]; then
 	echo "Forced $tun down. Deleted killswitch and rules."
 elif [ "$state" = "pre-up" ]; then
 	add_blackhole_routes
-	delete_vpn_routes
 	sh ${iptables_script} pre-up $tun
 	run_rule_watcher
 elif [ "$state" = "up" ]; then
