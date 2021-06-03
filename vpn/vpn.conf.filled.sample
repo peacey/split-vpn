@@ -52,7 +52,7 @@ EXEMPT_DESTINATIONS_IPV6="2001:100a:d666:1a22::/56 f000::/4"
 #
 # Format: [IPSet Name]:[src/dst,src/dst,...]
 FORCED_IPSETS="VPN_FORCED:dst"
-EXEMPT_IPSETS="VPN_EXEMPT:dst UBIOS_ADDRv4_eth8:dst UBIOS_ADDRv4_br6:dst UBIOS_ADDRv6_br6:dst"
+EXEMPT_IPSETS="VPN_EXEMPT:dst UBIOS_ADDRv4_eth8:dst UBIOS_ADDRv6_br0:dst"
 
 # VPN port forwards.
 # Format: [tcp/udp/both]-[VPN Port]-[Forward IP]-[Forward Port]
