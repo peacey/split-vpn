@@ -92,7 +92,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
                   --down /mnt/data/split-vpn/vpn/updown.sh \
                   --script-security 2 \
                   --ping-restart 15 \
-                  --mute-replay-warnings > openvpn.log &
+                  --mute-replay-warnings &> openvpn.log &
     ```
     You can modify the command to change `--ping-restart` or other options as needed. The only requirement is that you run updown.sh script as the up/down script and `--route-noexec` to disable OpenVPN from adding routes to the default table instead of our custom one.
     
@@ -105,7 +105,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
   <summary>Click here to see the instructions for WireGuard (kernel module).</summary>
 
   * **Prerequisuite:** Make sure the WireGuard kernel module is installed via either [wireguard-kmod](https://github.com/tusc/wireguard-kmod) or a [custom kernel](https://github.com/fabianishere/udm-kernel-tools). The WireGuard tools (wg-quick, wg) also need to be installed (included with wireguard-kmod) and accessible from your PATH.
-  * Make sure you run the wireguard setup script once, then test the installation of the module by running `modprobe wireguard` which should return nothing and no errors, and running `wg-quick` which should return the help and no errors. 
+  * Make sure you run the wireguard setup script from [wireguard-kmod](https://github.com/tusc/wireguard-kmod) once, then test the installation of the module by running `modprobe wireguard` which should return nothing and no errors, and running `wg-quick` which should return the help and no errors. 
   * Note that the kernel module is dependent on the software version of your UDMP because each software update usually brings a new kernel version. If you update the UDM/P software, you also need to update the kernel module to the new version once it is released (or compile your own module for the new kernel). The module will fail to run on a kernel it was not compiled for. Hence, you have to be careful that the UDMP doesn't perform a sofware update unexpectedly if you use this module. 
   
 1. SSH into the UDM/P (assuming it's on 192.168.1.254).
@@ -171,7 +171,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     wg-quick up wg0.conf
     ```
   
-    * You can skip the first line if you already setup the wireguard module previously.
+    * You can skip the first line if you already setup the wireguard kernel module previously as instructed at [wireguard-kmod](https://github.com/tusc/wireguard-kmod).
     * Type `wg` to check your WireGuard connection and make sure you received a handshake. No handshake indicates something is wrong with your wireguard configuration. Double check your configuration's Private and Public key and other variables.
     * If you need to bring down the WireGuard tunnel, run `wg-quick down wg0.conf` in this folder.
     * Note that wg-quick up/down commands need to be run from this folder so the script can pick up the correct configuration file.
@@ -295,10 +295,10 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
             sleep 1
     done
     if [ $started = 1 ]; then
-            echo "wireguard-go started successfully." &> wireguard.log
+            echo "wireguard-go started successfully." > wireguard.log
             /mnt/data/split-vpn/vpn/updown.sh wg0 up >> wireguard.log 2>&1
     else
-            echo "Error: wireguard-go did not start up correctly within 5 seconds." &> wireguard.log
+            echo "Error: wireguard-go did not start up correctly within 5 seconds." > wireguard.log
     fi
     cat wireguard.log
     ```
@@ -358,7 +358,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
 <details>
   <summary>Click here to see the instructions for OpenVPN.</summary>
     
-1. Create a new file under `/mnt/data/on_boot.d/run-vpn.sh` and fill it with the following. 
+1. Create a new file under `/mnt/data/on_boot.d/99-run-vpn.sh` and fill it with the following. 
 
     ```sh
     #!/bin/sh
@@ -379,7 +379,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
     * Remember to modify the `cd` line and the `--config` openvpn option to point to your config. 
     * Comment out the pre-up line if you want your forced clients to be able to access the Internet while the VPN is connecting (i.e. commenting it out doesn't enable the iptables kill switch until after OpenVPN connects).
 
-2. Run `chmod +x /mnt/data/on_boot.d/run-vpn.sh` to give the script execute permissions. 
+2. Run `chmod +x /mnt/data/on_boot.d/99-run-vpn.sh` to give the script execute permissions. 
 3. That's it. Now the VPN will start at every boot. 
 4. Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN and might leak their real IP, because the kill switch has not been activated yet. Read the queston *How can I block Internet access until after this script runs at boot?* in the [FAQ below](#faq) to see how to solve this problem and block Internet access until after this script runs. 
   
@@ -388,7 +388,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
 <details>
   <summary>Click here to see the instructions for WireGuard (kernel module).</summary>
     
-1. Create a new file under `/mnt/data/on_boot.d/run-vpn.sh` and fill it with the following. 
+1. Create a new file under `/mnt/data/on_boot.d/99-run-vpn.sh` and fill it with the following. 
 
     ```sh
     #!/bin/sh
@@ -405,9 +405,9 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
 
     * Comment out the pre-up line if you want your forced clients to be able to access the Internet if wireguard fails to start (i.e. commenting it out doesn't enable the iptables kill switch until after the VPN tunnel is brought up).
     * It is preferrable to separately run the pre-up hook like the above script instead of using wg-quick's PreUp hook in case wg-quick did not get set up correctly. wg-quick and the wireguard kernel module depends on the kernel version so might fail spontaneously if your UDM/P performs a software update.
-    * You can remove the setup_wireguard.sh line if you have another boot script that sets up the kernel module before this run script. Just make sure that this script runs after the setup script by prefixing each script with a number to determine priority (e.g.: 0-setup-wireguard.sh and 1-run-vpn.sh).
+    * You can remove the setup_wireguard.sh line if you have another boot script that sets up the kernel module before this run script. Just make sure that this script runs after the setup script by prefixing each script with a number to determine priority (e.g.: 90-setup-wireguard.sh and 99-run-vpn.sh).
 
-2. Run `chmod +x /mnt/data/on_boot.d/run-vpn.sh` to give the script execute permissions. 
+2. Run `chmod +x /mnt/data/on_boot.d/99-run-vpn.sh` to give the script execute permissions. 
 3. That's it. Now the VPN will start at every boot. 
 4. **OPTIONAL**: Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN and might leak their real IP, because the kill switch has not been activated yet. Read the queston *How can I block Internet access until after this script runs at boot?* in the [FAQ below](#faq) to see how to solve this problem and block Internet access until after this script runs. 
   
@@ -465,7 +465,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
                     --script-security 2 \
                     --dev-type tun --dev ${DEV} \
                     --ping-restart 15 \
-                    --mute-replay-warnings > openvpn.log &
+                    --mute-replay-warnings &> openvpn.log &
 
       # Load configuration for nordvpn and run openvpn
       cd /mnt/data/split-vpn/openvpn/nordvpn
@@ -478,7 +478,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
                     --script-security 2 \
                     --dev-type tun --dev ${DEV} \
                     --ping-restart 15 \
-                    --mute-replay-warnings > openvpn.log &
+                    --mute-replay-warnings &> openvpn.log &
     ```
 
 </details>
@@ -604,6 +604,17 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
     2. To disable the kill switch, set `KILLSWITCH=0` and `REMOVE_KILLSWITCH_ON_EXIT=1`. Note that there will be nothing preventing your VPN-forced clients from leaking their real IP if you disable the kill switch. 
 
     3. If you previously had the kill switch enabled and want to disable it after a crash or exit to recover Internet access, read the previous question. 
+  
+</details>
+  
+<details>
+  <summary>How do I enable or disable the VPN blackhole routes and what do they do?</summary>
+  
+  * The VPN blackhole routes are added to the custom route table before the VPN routes are added. The blackhole routes prevent Internet access on VPN-forced clients if the VPN started successfully but the VPN routes were not added because of some problem. Note this is not the same as the Unifi system-wide blackhole routes to prevent Internet access on startup before the VPN script runs (outlined in the boot section above).
+  
+    1. To enable the VPN blackhole routes, make sure `DISABLE_BLACKHOLE=0` or the variable is not set in your vpn.conf (default).
+  
+    2. To disable the VPN blackhole routes, set `DISABLE_BLACKHOLE=1` in your vpn.conf. This is not recommended unless you do not care about your real IP leaking. 
   
 </details>
 
