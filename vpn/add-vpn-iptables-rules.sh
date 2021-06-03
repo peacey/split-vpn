@@ -342,7 +342,7 @@ fi
 state="$1"
 
 # When this script is called from updown.sh, first argument is either up or down.
-if [ "$state" = "up" ]; then
+if [ "$state" = "pre-up" -o "$state" = "up" ]; then
 	if [ "${KILLSWITCH}" = 1 ]; then
 		add_killswitch
 	fi
