@@ -296,10 +296,11 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     done
     if [ $started = 1 ]; then
             echo "wireguard-go started successfully." &> wireguard.log
-            /mnt/data/split-vpn/vpn/updown.sh wg0 up &>> wireguard.log
+            /mnt/data/split-vpn/vpn/updown.sh wg0 up >> wireguard.log 2>&1
     else
-            echo "Error: wireguard-go did not start up correctly." &> wireguard.log
+            echo "Error: wireguard-go did not start up correctly within 5 seconds." &> wireguard.log
     fi
+    cat wireguard.log
     ```
   
     * Comment out the pre-up line at the beginning if you want your forced clients to be able to access the Internet if wireguard fails to start (i.e. commenting it out doesn't enable the iptables kill switch until after the VPN tunnel is brought up).
