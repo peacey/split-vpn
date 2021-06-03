@@ -701,7 +701,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   <summary>Something went wrong. How can I debug?</summary>
   
   1. For OpenVPN, first check the openvpn.log file in the VPN server's directory for any errors. 
-  2. For WireGuard, check the output when you run your run script or wg-quick up. For wireguard-go, check the output when you run your run script. Make sure you received a handshake in WireGuard or the connection will not work. If you did not receive a handshake, double check your configuration's Private and Public key and other variables.
+  2. For WireGuard, check wireguard.log after you run your run script or check the output of wg-quick up. For wireguard-go, check the output when you run your run script. Make sure you received a handshake in WireGuard or the connection will not work. If you did not receive a handshake, double check your configuration's Private and Public key and other variables.
   2. Check that the iptable rules, policy-based routes, and custom table routes agree with your configuration. See the previous question for how to look this up.
   3. If you want to see which line the scripts failed on, open the `updown.sh` and `add-vpn-iptables-rules.sh` scripts and replace the `set -e` line at the top with `set -xe` then rerun the VPN. The `-x` flag tells the shell to print every line before it executes it. 
   4. Post a bug report if you encounter any reproducible issues. 
