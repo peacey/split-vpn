@@ -48,7 +48,8 @@ EXEMPT_DESTINATIONS_IPV6=""
 # You can also use this option to allow NAT hairpin to work while on the VPN
 # by adding the Unifi IP sets for the interface to the EXEMPT_IPSETS variable.
 # For example, for eth8 WAN, IP sets are UBIOS_ADDRv4_eth8 and UBIOS_ADDRv6_eth8.
-# For prefix delegation, IPv6 WAN addresses are stored in the bridge interfaces, not eth interfaces. 
+# For prefix delegation, IPv6 WAN addresses are stored in the bridge interfaces,
+# not eth interfaces.
 #
 # Format: [IPSet Name]:[src/dst,src/dst,...]
 FORCED_IPSETS=""
