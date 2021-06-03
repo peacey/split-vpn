@@ -1,9 +1,9 @@
 # split-vpn
-A split tunnel VPN script for the UDM Pro with policy based routing.
+A split tunnel VPN script for the UDM with policy based routing.
 
 ## What is this?
 
-This is a helper script for the OpenVPN client on the UDMP that creates a split tunnel for the VPN connection, and forces configured clients through the VPN instead of the default WAN. This is accomplished by marking every packet of the forced clients with an iptables firewall mark (fwmark), adding the VPN routes to a custom routing table, and using a policy-based routing rule to direct the marked traffic to the custom table. 
+This is a helper script for the OpenVPN or WireGuard client on the UDM that creates a split tunnel for the VPN connection, and forces configured clients through the VPN instead of the default WAN. This is accomplished by marking every packet of the forced clients with an iptables firewall mark (fwmark), adding the VPN routes to a custom routing table, and using a policy-based routing rule to direct the marked traffic to the custom table. 
 
 ## Features
 
@@ -22,7 +22,7 @@ This is a helper script for the OpenVPN client on the UDMP that creates a split 
 
 ## Compatibility
 
-This script is designed to be run on the UDM-Pro. It has only been tested on version 1.8.6, however other versions should work. This has not yet been tested on the UDM (non-pro). Please submit a bug report if you use this on a different version and encounter issues. 
+This script is designed to be run on the UDM-Pro and UDM base. It has been tested on 1.8.x, 1.9.x, and 1.10.x, however other versions should work. Please submit a bug report if you use this on a different version and encounter issues. 
 
 ## How do I use this?
 
@@ -104,8 +104,8 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
 <details>
   <summary>Click here to see the instructions for WireGuard (kernel module).</summary>
 
-  * Prerequisuite: Make sure the WireGuard kernel module is installed via either [wireguard-kmod](https://github.com/tusc/wireguard-kmod) or a [custom kernel](https://github.com/fabianishere/udm-kernel-tools). The WireGuard tools (wg-quick, wg) also need to be installed (included with wireguard-kmod) and accessible from your PATH.
-  * Test the installation of the module by SSHing into the UDM/P and running `modprobe wireguard` which should return nothing and no errors, and running `wg-quick` which should return the help and no errors. 
+  * **Prerequisuite:** Make sure the WireGuard kernel module is installed via either [wireguard-kmod](https://github.com/tusc/wireguard-kmod) or a [custom kernel](https://github.com/fabianishere/udm-kernel-tools). The WireGuard tools (wg-quick, wg) also need to be installed (included with wireguard-kmod) and accessible from your PATH.
+  * Make sure you run the wireguard setup script once, then test the installation of the module by running `modprobe wireguard` which should return nothing and no errors, and running `wg-quick` which should return the help and no errors. 
   * Note that the kernel module is dependent on the software version of your UDMP because each software update usually brings a new kernel version. If you update the UDM/P software, you also need to update the kernel module to the new version once it is released (or compile your own module for the new kernel). The module will fail to run on a kernel it was not compiled for. Hence, you have to be careful that the UDMP doesn't perform a sofware update unexpectedly if you use this module. 
   
 1. SSH into the UDM/P (assuming it's on 192.168.1.254).
@@ -154,22 +154,25 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
       * Comment out or remove the `DNS` line. Use the DNS settings in your `vpn.conf` file instead if you want to force your clients to use a certain DNS server. 
       * Set AllowedIPs to `0.0.0.0/1,128.0.0.0/1,::/1,8000::/1` to allow all IPv4 and IPv6 traffic through the VPN. Do not use `0.0.0.0/0,::/0` because it will interfere with the blackhole routes and won't allow wireguard to start. If you prefer to use `0.0.0.0/0,::/0`, disable blackhole routes by setting `DISABLE_BLACKHOLE=1` in your `vpn.conf` file so wireguard can start successfully. 
       * Remove any extra PreUp/PostUp/PreDown/PostDown lines that could interfere with the VPN script. 
+      * You can remove or comment out the PreUp line if you do not want VPN-forced clients to lose Internet access if WireGuard does not start correctly.
 
 5. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
   
-   * The option `VPN_PROVIDER` is set to "external".
-   * The option `DEV` is set to "wg0" or your wireguard's interface (i.e. the wireguard configuration filename without .conf -- wg0 in this example).
-   * The option `ROUTE_TABLE` is the same number as `Table` in your `wg0.conf` file.
-   * The option `VPN_ENDPOINT_IPV4` or `VPN_ENDPOINT_IPV6` is set to your WireGuard server's IP as defined in `wg0.conf`'s `Endpoint` variable.
    * The option `DNS_IPV4_IP` and/or `DNS_IPV6_IP` is set to the DNS server you want to force for your clients, or set them to empty if you do not want to force any DNS. 
+   * The option `VPN_PROVIDER` is set to "external".
+   * The option `VPN_ENDPOINT_IPV4` or `VPN_ENDPOINT_IPV6` is set to your WireGuard server's IP as defined in `wg0.conf`'s `Endpoint` variable.
+   * The option `ROUTE_TABLE` is the same number as `Table` in your `wg0.conf` file.
+   * The option `DEV` is set to "wg0" or your interface's name if different (i.e.: the name of your .conf file).
   
 6. Run wg-quick to start wireguard with your configuration and test if the connection worked. 
 
     ```sh
+    /mnt/data/wireguard/setup_wireguard.sh
     wg-quick up wg0.conf
     ```
   
-    * Type `wg` to check your WireGuard connection and make sure you received a handshake. No handshake indicates something is wrong with your wireguard configuration.
+    * You can skip the first line if you already setup the wireguard module previously.
+    * Type `wg` to check your WireGuard connection and make sure you received a handshake. No handshake indicates something is wrong with your wireguard configuration. Double check your configuration's Private and Public key and other variables.
     * If you need to bring down the WireGuard tunnel, run `wg-quick down wg0.conf` in this folder.
     * Note that wg-quick up/down commands need to be run from this folder so the script can pick up the correct configuration file.
     
@@ -200,7 +203,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
 <details>
   <summary>Click here to see the instructions for wireguard-go (software implementation).</summary>
 
-  * Prerequisuite: Make sure the wireguard-go container is installed as instructed at the [wireguard-go repo](https://github.com/boostchicken/udm-utilities/tree/master/wireguard-go). After this step, you should have the directory `/mnt/data/wireguard` and the run script `/mnt/data/on_boot.d/20-wireguard.sh` installed.
+  * **Prerequisuite:** Make sure the wireguard-go container is installed as instructed at the [wireguard-go repo](https://github.com/boostchicken/udm-utilities/tree/master/wireguard-go). After this step, you should have the directory `/mnt/data/wireguard` and the run script `/mnt/data/on_boot.d/20-wireguard.sh` installed.
   * The wireguard-go container only supports a single interface - wg0. This means you cannot connect to multiple wireguard servers. If you want to use multiple servers with this script, then use the WireGuard kernel module instead as explained above. 
   * wireguard-go is a software implementation of WireGuard, and will have reduced performance compared to the kernel module. However, wireguard-go is not dependent on your UDM/P's kernel version, and will not break when your UDM/P updates.
   
@@ -247,17 +250,17 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
       * Comment out or remove the `DNS` line. Use the DNS settings in your `vpn.conf` file instead if you want to force your clients to use a certain DNS server. 
       * Set AllowedIPs to `0.0.0.0/1,128.0.0.0/1,::/1,8000::/1` to allow all IPv4 and IPv6 traffic through the VPN. Do not use `0.0.0.0/0,::/0` because it will interfere with the blackhole routes and won't allow wireguard to start. If you prefer to use `0.0.0.0/0,::/0`, disable blackhole routes by setting `DISABLE_BLACKHOLE=1` in your `vpn.conf` file so wireguard can start successfully. 
       * Remove any extra PreUp/PostUp/PreDown/PostDown lines that could interfere with the VPN script.
-      * Do not use PostUp/PreDown to call the split-vpn script (like in the wireguard kernel module case) because the container will not have access to the location of the script. Instead, we will call the script manually after bringing the interface up/down as instructed below. 
+      * Do not use PreUp/PostUp/PreDown to call the split-vpn script (like in the wireguard kernel module case) because the container will not have access to the location of the script. Instead, we will call the script manually after bringing the interface up/down as instructed below. 
 
 5. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
   
-   * The option `VPN_PROVIDER` is set to "external".
-   * The option `DEV` is set to "wg0".
-   * The option `ROUTE_TABLE` is the same number as `Table` in your `wg0.conf` file.
-   * The option `VPN_ENDPOINT_IPV4` or `VPN_ENDPOINT_IPV6` is set to your WireGuard server's IP as defined in `wg0.conf`'s `Endpoint` variable.
    * The option `DNS_IPV4_IP` and/or `DNS_IPV6_IP` is set to the DNS server you want to force for your clients, or set them to empty if you do not want to force any DNS. 
-  
-6. Modify your run script that you installed with wireguard-go (located at /mnt/data/on_boot.d/20-wireguard.sh) to include the split-vpn script hooks by replacing it with the following code:
+   * The option `VPN_PROVIDER` is set to "external".
+   * The option `VPN_ENDPOINT_IPV4` or `VPN_ENDPOINT_IPV6` is set to your WireGuard server's IP as defined in `wg0.conf`'s `Endpoint` variable.
+   * The option `ROUTE_TABLE` is the same number as `Table` in your `wg0.conf` file.
+   * The option `DEV` is set to "wg0".
+
+6. Modify your run script that you installed with wireguard-go (located at `/mnt/data/on_boot.d/20-wireguard.sh`) to include the split-vpn script hooks by replacing it with the following code:
   
     ```sh
     #!/bin/sh
@@ -310,7 +313,7 @@ This script is designed to be run on the UDM-Pro. It has only been tested on ver
     podman exec -it wireguard wg
     ```
   
-    * No handshake in the above output indicates something is wrong with your wireguard configuration.
+    * No handshake in the above output indicates something is wrong with your wireguard configuration. Double check your configuration's Private and Public key and other variables.
     * If you need to bring down the WireGuard tunnel and resume normal Internet access to your forced clients, run the following commands in this folder:
   
       ```sh
@@ -510,7 +513,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
 <details>  
   <summary>Can I route clients to different VPN servers for wireguard-go?</summary>
   
-  * No, you cannot. The wireguard-go container only supports a single interface named wg0.conf. It cannot be used to connect an interface named something else, so only one interface is supported with this configuration. For multiple interfaces, you need to either use the kernel module or build your own docker container for wireguard-go that supports multiple interfaces (not covered here).
+  * No, you cannot. The wireguard-go container only supports a single interface named wg0. It cannot be used to connect an interface named something else, so only one interface is supported with this configuration. For multiple interfaces, you need to either use the kernel module or build your own docker container for wireguard-go that supports multiple interfaces (not covered here).
   
 </details>
 
@@ -519,7 +522,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   
   * Yes you can if you are using dnsmasq or pihole. Please see the [instructions here](ipsets/README.md) for how to set this up.
   
-</details>  
+</details>
 
 <details>
   <summary>I cannot access my WAN IP from a VPN-forced client (i.e. hairpin NAT does not work). What do I do?</summary>
@@ -698,7 +701,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   <summary>Something went wrong. How can I debug?</summary>
   
   1. For OpenVPN, first check the openvpn.log file in the VPN server's directory for any errors. 
-  2. For WireGuard, check the output when you run your run script or wg-quick up. For wireguard-go, check the output when you run your run script. Make sure you received a handshake in WireGuard or the connection will not work.
+  2. For WireGuard, check the output when you run your run script or wg-quick up. For wireguard-go, check the output when you run your run script. Make sure you received a handshake in WireGuard or the connection will not work. If you did not receive a handshake, double check your configuration's Private and Public key and other variables.
   2. Check that the iptable rules, policy-based routes, and custom table routes agree with your configuration. See the previous question for how to look this up.
   3. If you want to see which line the scripts failed on, open the `updown.sh` and `add-vpn-iptables-rules.sh` scripts and replace the `set -e` line at the top with `set -xe` then rerun the VPN. The `-x` flag tells the shell to print every line before it executes it. 
   4. Post a bug report if you encounter any reproducible issues. 
@@ -1050,7 +1053,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   
   <details>
     <summary>DISABLE_BLACKHOLE</summary>
-    Enable this to disable the VPN blackhole routes that are added (the blackhole routes help prevent VPN-forced clients from accessing the Internet if the VPN routes are not added because an error). 
+    Set this to 1 to disable the VPN blackhole routes that are added (the blackhole routes help prevent VPN-forced clients from accessing the Internet if the VPN routes are not added because an error). 
     
       Format: 0 (default) or 1
       Example: DISABLE_BLACKHOLE=0
