@@ -270,7 +270,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     cd /mnt/data/wireguard
 
     # Start the split-vpn pre-up hook.
-    /mnt/data/split-vpn/vpn/updown.sh wg0 pre-up
+    /mnt/data/split-vpn/vpn/updown.sh wg0 pre-up &> pre-up.log
 
     # Starts a wireguard container that is deleted after it is stopped.
     # All configs stored in /mnt/data/wireguard
@@ -295,10 +295,10 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
             sleep 1
     done
     if [ $started = 1 ]; then
-            echo "wireguard-go started successfully."
-            /mnt/data/split-vpn/vpn/updown.sh wg0 up
+            echo "wireguard-go started successfully." &> wireguard.log
+            /mnt/data/split-vpn/vpn/updown.sh wg0 up &>> wireguard.log
     else
-            echo "Error: wireguard-go did not start up correctly."
+            echo "Error: wireguard-go did not start up correctly." &> wireguard.log
     fi
     ```
   
@@ -399,7 +399,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
     cd /mnt/data/split-vpn/wireguard/mullvad
     source ./vpn.conf
     /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
-    wg-quick up ./${DEV}.conf
+    wg-quick up ./${DEV}.conf &> wireguard.log
     ```
 
     * Comment out the pre-up line if you want your forced clients to be able to access the Internet if wireguard fails to start (i.e. commenting it out doesn't enable the iptables kill switch until after the VPN tunnel is brought up).
@@ -499,13 +499,13 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
     cd /mnt/data/split-vpn/wireguard/mullvad
     source ./vpn.conf
     /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
-    wg-quick up ./${DEV}.conf
+    wg-quick up ./${DEV}.conf &> wireguard.log
 
     # Load configuration for ExpressVPN and run wg-quick
     cd /mnt/data/split-vpn/wireguard/expressvpn
     source ./vpn.conf
     /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
-    wg-quick up ./${DEV}.conf
+    wg-quick up ./${DEV}.conf &> wireguard.log
     ```
 
 </details>
