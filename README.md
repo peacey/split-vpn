@@ -1391,14 +1391,14 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
     <summary>VPN_PROVIDER</summary>
      The VPN provider you are using with this script.
     
-      Format: "openvpn" for OpenVPN (default), "openconnect" for OpenConnect, or "external" for wireguard or other external providers.
+      Format: "openvpn" for OpenVPN (default), "openconnect" for OpenConnect, "external" for wireguard, or "nexthop" for an external VPN client connected to another computer on your network. 
       Example: VPN_PROVIDER="openvpn"
 
   </details>
     
   <details>
     <summary>VPN_ENDPOINT_IPV4</summary>
-    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv4 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN and OpenConnect automatically passes the VPN endpoint IP to the script and will override this value.
+    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv4 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN and OpenConnect automatically passes the VPN endpoint IP to the script and will override this value. This option must be defined if using nexthop VPN_PROVIDER.
     
       Format: [IP]
       Example: VPN_ENDPOINT_IPV4="2.2.2.2"
@@ -1407,7 +1407,7 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
   
   <details>
     <summary>VPN_ENDPOINT_IPV6</summary>
-    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv6 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN and OpenConnect automatically passes the VPN endpoint IP to the script and will override this value.
+    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv6 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN and OpenConnect automatically passes the VPN endpoint IP to the script and will override this value. This option must be defined if using nexthop VPN_PROVIDER.
     
       Format: [IP]
       Example: VPN_ENDPOINT_IPV6="2606:43:ee::23"
