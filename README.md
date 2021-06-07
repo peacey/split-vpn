@@ -40,7 +40,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ```sh
     cd /mnt/data
     mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
     cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
     chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
     ```
@@ -120,7 +120,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ```sh
     cd /mnt/data
     mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
     cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
     chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
     ```
@@ -220,7 +220,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ```sh
     cd /mnt/data
     mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
     cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
     chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
     ```
@@ -366,7 +366,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ```sh
     cd /mnt/data
     mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
     cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
     chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
     ```
@@ -435,7 +435,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
   
 8. The first time the script runs, it will download the OpenConnect docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
     
-    * If the script ran successfully, check the `openconnect.log` file by running `cat openconnect.log`. If the connection is working, you should see that OpenConnect established a connection without errors an that split-vpn ran.
+    * If the script ran successfully, check the `openconnect.log` file by running `cat openconnect.log`. If the connection is working, you should see that OpenConnect established a connection without errors and that split-vpn ran.
   
 9. If the connection works, check each client to make sure they are on the VPN by doing the following.
 
@@ -463,15 +463,15 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
   <summary>Click here to see the instructions for an external VPN client setup on another computer on your network (nexthop).</summary>
 
   * **PREREQUISITE:** Make sure your computer is connected to the VPN and is setup to forward IPv4 and IPv6 packets. You also need to setup a masquerade/SNAT rule on the VPN tunnel interface to make forwarded traffic work properly on the Internet. 
-  * On a Linux system, the following commands run as root set up IP forwarding and masquerade rules (assuming tun0 is your VPN tunnel interface).
-  
-    ```sh
-    sysctl -w net.ipv4.ip_forward=1
-    sysctl -w net.ipv6.conf.all.forwarding=1
-    sysctl -w net.ipv6.conf.default.forwarding=1
-    iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
-    ip6tables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
-    ```
+    * On a Linux system, the following commands run as root set up IP forwarding and masquerade rules (assuming tun0 is your VPN tunnel interface). These commands have to be run on the VPN computer, not the UDM.
+
+      ```sh
+      sysctl -w net.ipv4.ip_forward=1
+      sysctl -w net.ipv6.conf.all.forwarding=1
+      sysctl -w net.ipv6.conf.default.forwarding=1
+      iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+      ip6tables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+      ```
   
 1. After your VPN computer is set up correctly, SSH into the UDM/P (assuming it's on 192.168.1.254).
 
@@ -484,7 +484,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ```sh
     cd /mnt/data
     mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
     cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
     chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
     ```
