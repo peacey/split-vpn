@@ -39,7 +39,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
     curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
     cp -rf split-vpn-main/vpn vpn && rm -rf split-vpn-main
     chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
@@ -119,7 +119,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
     curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
     cp -rf split-vpn-main/vpn vpn && rm -rf split-vpn-main
     chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
@@ -219,7 +219,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
     curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
     cp -rf split-vpn-main/vpn vpn && rm -rf split-vpn-main
     chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
@@ -365,7 +365,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
     curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
     cp -rf split-vpn-main/vpn vpn && rm -rf split-vpn-main
     chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
@@ -483,7 +483,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
     curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
     cp -rf split-vpn-main/vpn vpn && rm -rf split-vpn-main
     chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
