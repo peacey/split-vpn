@@ -376,7 +376,12 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     echo "mypassword" > password.txt
     ```
   
-4. In the current folder, create a run script that will run the OpenConnect container called `run-vpn.sh`, and fill it with the following code:
+4. Edit the vpn.conf file with your desired settings. See the explanation of each setting below. Make sure that:
+
+    * The options `DNS_IPV4_IP` and `DNS_IPV6_IP` are set to "DHCP" if you want to force VPN-forced clients to use the DNS provided by the VPN server. 
+    * The option `VPN_PROVIDER` is set to "openconnect". This is required for the script to work with OpenConnect.
+  
+5. In the current folder, create a run script that will run the OpenConnect container called `run-vpn.sh`, and fill it with the following code:
   
     * Tip: When you run vim, press 'i' to enter insert mode, right click on vim -> paste, press 'ESC' to exit insert mode, type ':wq' to save and exit.
   
@@ -404,13 +409,13 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     * If you do not want to run the VPN in the background (e.g. for testing), remove the "d" from `podman run -id` in the 5th line.
     * This code writes the output to openconnect.log in the current folder. 
   
-5. Give the script executable permissions.
+6. Give the script executable permissions.
   
   ```sh
   chmod +x run-vpn.sh
   ```
   
-6. Run the script from the configuration folder.
+7. Run the script from the configuration folder.
   
   ```sh
   ./run-vpn.sh
@@ -424,11 +429,11 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ````
     * Replace tun0 in the last line with the DEV you configured in vpn.conf (default is tun0). You can also use `kill -TERM $(pgrep -f "openconnect.*tun0")` to kill only the tun0 openconnect instance if you have multiple servers connected.
   
-7. The first time the script runs, it will download the OpenConnect docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
+8. The first time the script runs, it will download the OpenConnect docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
     
     * If the script ran successfully, check the `openconnect.log` file by running `cat openconnect.log`. If the connection is working, you should see that OpenConnect established a connection without errors an that split-vpn ran.
   
-8. If the connection works, check each client to make sure they are on the VPN by doing the following.
+9. If the connection works, check each client to make sure they are on the VPN by doing the following.
 
     * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
     
@@ -442,11 +447,11 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
     * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
     
-9. If you want to continue blocking Internet access to forced clients after the openconnect client is shut down, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
+10. If you want to continue blocking Internet access to forced clients after the openconnect client is shut down, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
     
-10. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+11. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 
-11. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+12. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
   
 </details>
 
