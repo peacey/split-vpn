@@ -30,12 +30,14 @@ These instructions assume you have already installed the VPN script according to
 		EXEMPT_IPSETS="VPN_EXEMPT:dst"
 		```
 	2. If you want to force different domain sets to different clients or VLANs, see the instructions [below](#how-can-I-force-different-domain-sets-to-different-clients).
+	3. Note that VPN-forced clients must use your dnsmasq or pihole address as their DNS for the domain-forcing to work, so make sure `DNS_IPV4_IP` is not set to DHCP. If clients will bypass your DHCP options, you should set `DNS_IPV4_IP/DNS_IPV6_IP` to your DNS server address (i.e. the UDMP address for local dnsmasq, or pihole address), and `DNS_IPV4_INTERFACE/DNS_IPV6_INTERFACE` to the bridge interface of that address (brX where X is the VLAN number). 
 6. Restart the VPN client to apply the new configuration.  
-5. If you are using a boot script (`/mnt/data/on_boot.d/run-vpn.sh`), modify it and add the following lines before you load the configuration for openvpn.
+7. If you are using a boot script (`/mnt/data/on_boot.d/99-run-vpn.sh`), modify it and add the following lines before you load the configuration for your VPN.
 	```sh
 	# Add dnsmasq 
 	/mnt/data/split-vpn/ipsets/add-dnsmasq-ipsets.sh
 	```
+
 
 ## How can I force different domain sets to different clients?
 1. Copy the sample ipset config to as many configurations as you want, but give each one a different prefix. For example:
