@@ -376,7 +376,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     echo "mypassword" > password.txt
     ```
   
-4. Edit the vpn.conf file with your desired settings. See the explanation of each setting below. Make sure that:
+4. Edit the `vpn.conf` file in this folder with your desired settings. See the explanation of each setting below. Make sure that:
 
     * The options `DNS_IPV4_IP` and `DNS_IPV6_IP` are set to "DHCP" if you want to force VPN-forced clients to use the DNS provided by the VPN server. 
     * The option `VPN_PROVIDER` is set to "openconnect". This is required for the script to work with OpenConnect.
