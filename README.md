@@ -35,13 +35,14 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ssh root@192.168.1.254
     ```
     
-2. Download the scripts package and extract it to `/mnt/data/split-vpn/vpn`.
+2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/vpn
-    cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/vpn/*" -o -j -d vpn && chmod +x vpn/*.sh
+    mkdir /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
+    cp -rf split-vpn-main/vpn vpn && rm -rf split-vpn-main
+    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
     ```
     
 3. Create a directory for your VPN provider's openvpn configuration files, and copy your VPN's configuration files (certificates, config, password files, etc) and the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`. NordVPN is used below as an example. 
@@ -114,13 +115,14 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ssh root@192.168.1.254
     ```
   
-2. Download the scripts package and extract it to `/mnt/data/split-vpn/vpn`.
+2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/vpn
-    cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/vpn/*" -o -j -d vpn && chmod +x vpn/*.sh
+    mkdir /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
+    cp -rf split-vpn-main/vpn vpn && rm -rf split-vpn-main
+    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
     ```
     
 3. Create a directory for your WireGuard configuration files, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`, and copy your WireGuard configuration file (wg0.conf) or create it. As an example below, we are creating the wg0.conf file that mullvad provides and pasting the contents into it. You can use any name for your config instead of wg0 (e.g.: mullvad-ca2.conf) and this will be the interface name of the wireguard tunnel. 
@@ -213,13 +215,14 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ssh root@192.168.1.254
     ```
   
-2. Download the scripts package and extract it to `/mnt/data/split-vpn/vpn`.
+2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/vpn
-    cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/vpn/*" -o -j -d vpn && chmod +x vpn/*.sh
+    mkdir /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
+    cp -rf split-vpn-main/vpn vpn && rm -rf split-vpn-main
+    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
     ```
     
 3. Create a directory for your WireGuard configuration files under `/mnt/data/wireguard` if not created already, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`, and copy your WireGuard configuration file (wg0.conf) or create it. As an example below, we are creating the wg0.conf file that mullvad provides and pasting the contents into it. You can only use wg0.conf and not any other name because the wireguard-go container expects this configuration file. 
@@ -358,13 +361,14 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ssh root@192.168.1.254
     ```
   
-2. Download the scripts package and extract it to `/mnt/data/split-vpn/vpn`.
+2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/vpn
-    cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/vpn/*" -o -j -d vpn && chmod +x vpn/*.sh
+    mkdir /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
+    cp -rf split-vpn-main/vpn vpn && rm -rf split-vpn-main
+    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
     ```
     
 3. Create a directory for your OpenConnect configuration files under `/mnt/data/split-vpn/openconnect`, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`, and copy any certificates needed or other client files for your configuration. As an example below, we are going to connect a server that only uses a username/password, so no certificate is needed, but we have to create a password.txt file and put the password inside it.
@@ -475,13 +479,14 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ssh root@192.168.1.254
     ```
   
-2. Download the scripts package and extract it to `/mnt/data/split-vpn/vpn`.
+2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
 
     ```sh
     cd /mnt/data
-    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/vpn
-    cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/vpn/*" -o -j -d vpn && chmod +x vpn/*.sh
+    mkdir /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip -
+    cp -rf split-vpn-main/vpn vpn && rm -rf split-vpn-main
+    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
     ```
     
 3. Create a directory for your VPN configuration, and copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`.
