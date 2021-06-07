@@ -14,7 +14,7 @@ This is a helper script for multiple VPN clients on the UDM that creates a split
 * Port forwarding on the VPN side to local clients (not all VPN providers give you ports).
 * Redirect DNS for VPN traffic to either an upstream DNS server or a local server like pihole, or block DNS requests completely.
 * Built-in kill switch via iptables and blackhole routing.
-* Works across IP changes and network restarts. 
+* Works across IP changes, network restarts, and the UDM's WAN Failover.  
 * Can be used with multiple openvpn instances with separate configurations for each. This allows you to force different clients through different VPN servers. 
 * IPv6 support for all options.
 * Run on boot support via UDM-Utilities boot script.
