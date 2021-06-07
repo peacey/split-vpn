@@ -63,20 +63,23 @@ PORT_FORWARDS_IPV6=""
 # Redirect IPv4 and IPv6 DNS to these addresses for VPN-destined traffic.
 # Note that many VPN providers redirect DNS going through their VPN network
 # to their own DNS servers. Redirection to other IPs might not work on all providers,
-# except for DNS redirects to a local address, or rejecting DNS traffic completely. 
+# except for DNS redirects to a local address, or rejecting DNS traffic completely.
 #
-# IPV4 Format: [IP] to redirect to IP, "DHCP" if using OpenVPN to obtain DNS from 
-# DHCP options, or "REJECT" to reject all DNS traffic. "DHCP" is not supported on 
+# IPV4 Format: [IP] to redirect to IP, "DHCP" if using OpenVPN or OpenConnect to obtain
+# DNS from DHCP options, or "REJECT" to reject all DNS traffic. "DHCP" is not supported on
 # other VPN types like wireguard/external.
 #
 # Example: Get DNS from DHCP
 DNS_IPV4_IP="DHCP"
 DNS_IPV4_PORT=53
-# Set this to the interface (brX) the DNS is on if it is a local IP. Leave blank for 
-# non-local IPs. Local DNS redirects will not work without specifying the interface. 
+# Set this to the interface (brX) the DNS is on if it is a local IP. Leave blank for
+# non-local IPs. Local DNS redirects will not work without specifying the interface.
 DNS_IPV4_INTERFACE=""
 
-# IPV6 Format: [IP] to redirect to IP, or "REJECT" to reject IPv6 DNS traffic completely. 
+# IPV6 Format: [IP] to redirect to IP, or "REJECT" to reject IPv6 DNS traffic completely.
+# IPV6 Format: [IP] to redirect to IP, "DHCP" if using OpenConnect to obtain DNS from DHCP
+# options, or "REJECT" to reject all DNS traffic. "DHCP" is not supported on
+# other VPN types.
 DNS_IPV6_IP=""
 DNS_IPV6_PORT=53
 DNS_IPV6_INTERFACE=""
@@ -105,19 +108,23 @@ REMOVE_KILLSWITCH_ON_EXIT=1
 REMOVE_STARTUP_BLACKHOLES=1
 
 # Set the VPN provider.
-# "openvpn" for OpenVPN (default), or "external" for wireguard.
+# "openvpn" for OpenVPN (default), "openconnect" for OpenConnect, "external" for wireguard,
+# or "nexthop" for an external VPN client.
 VPN_PROVIDER="openvpn"
 
 # If using "external" for VPN_PROVIDER, set this to the VPN endpoint IP so that the
 # gateway route can be automatically added for the VPN endpoint.
 # OpenVPN passes the VPN endpoint IP to the script and will override these values.
+# These must be defined if using VPN_PROVIDER="nexthop".
 VPN_ENDPOINT_IPV4=""
 VPN_ENDPOINT_IPV6=""
 
-# Set this to the route table that contains the gateway route, or "auto".
-# "201" if you're using Ethernet, "202" for SFP+, and "203" for U-LTE.
-# Default is "auto" which works with WAN failover and automatically changes the 
-# endpoint via gateway route when the WAN or gateway routes changes.
+# Set this to the route table that contains the gateway route, "auto", or "disabled".
+# The Ubiquiti route table are "201" if you're using Ethernet, "202" for SFP+, and
+# "203" for U-LTE.
+# Default is "auto" which works with WAN failover and automatically changes the endpoint
+# via gateway route when the WAN or gateway routes changes.
+# Set to "disabled" for nexthop option to connect to a LAN computer.
 GATEWAY_TABLE="auto"
 
 # Set this to the timer to use for the rule watcher (in seconds).
