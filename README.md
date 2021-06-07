@@ -387,7 +387,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
   
 5. In the current folder, create a run script that will run the OpenConnect container called `run-vpn.sh`, and fill it with the following code:
   
-    * Tip: When you run vim, press 'i' to enter insert mode, right click on vim -> paste, press 'ESC' to exit insert mode, type ':wq' to save and exit.
+    * Tip: Run the vim text editor using `vim run-vpn.sh`, press 'i' to enter insert mode, right click on vim -> paste, press 'ESC' to exit insert mode, type ':wq' to save and exit.
   
     ```sh
     #!/bin/sh
