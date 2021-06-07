@@ -3,7 +3,7 @@ A split tunnel VPN script for the UDM with policy based routing.
 
 ## What is this?
 
-This is a helper script for the OpenVPN or WireGuard client on the UDM that creates a split tunnel for the VPN connection, and forces configured clients through the VPN instead of the default WAN. This is accomplished by marking every packet of the forced clients with an iptables firewall mark (fwmark), adding the VPN routes to a custom routing table, and using a policy-based routing rule to direct the marked traffic to the custom table. 
+This is a helper script for multiple VPN clients on the UDM that creates a split tunnel for the VPN connection, and forces configured clients through the VPN instead of the default WAN. This is accomplished by marking every packet of the forced clients with an iptables firewall mark (fwmark), adding the VPN routes to a custom routing table, and using a policy-based routing rule to direct the marked traffic to the custom table. This script works with OpenVPN, WireGuard, OpenConnect, or an external nexthop VPN client on your network. 
 
 ## Features
 
@@ -18,7 +18,7 @@ This is a helper script for the OpenVPN or WireGuard client on the UDM that crea
 * Can be used with multiple openvpn instances with separate configurations for each. This allows you to force different clients through different VPN servers. 
 * IPv6 support for all options.
 * Run on boot support via UDM-Utilities boot script.
-* Supports OpenVPN, WireGuard kernel module, and wireguard-go docker container.
+* Supports OpenVPN, WireGuard kernel module, wireguard-go docker container, OpenConnect docker container, and external VPN clients on your network (nexthop).
 
 ## Compatibility
 
@@ -104,7 +104,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
 <details>
   <summary>Click here to see the instructions for WireGuard (kernel module).</summary>
 
-  * **Prerequisuite:** Make sure the WireGuard kernel module is installed via either [wireguard-kmod](https://github.com/tusc/wireguard-kmod) or a [custom kernel](https://github.com/fabianishere/udm-kernel-tools). The WireGuard tools (wg-quick, wg) also need to be installed (included with wireguard-kmod) and accessible from your PATH.
+  * **PREREQUISITE:** Make sure the WireGuard kernel module is installed via either [wireguard-kmod](https://github.com/tusc/wireguard-kmod) or a [custom kernel](https://github.com/fabianishere/udm-kernel-tools). The WireGuard tools (wg-quick, wg) also need to be installed (included with wireguard-kmod) and accessible from your PATH.
   * Make sure you run the wireguard setup script from [wireguard-kmod](https://github.com/tusc/wireguard-kmod) once, then test the installation of the module by running `modprobe wireguard` which should return nothing and no errors, and running `wg-quick` which should return the help and no errors. 
   * Note that the kernel module is dependent on the software version of your UDMP because each software update usually brings a new kernel version. If you update the UDM/P software, you also need to update the kernel module to the new version once it is released (or compile your own module for the new kernel). The module will fail to run on a kernel it was not compiled for. Hence, you have to be careful that the UDMP doesn't perform a sofware update unexpectedly if you use this module. 
   
@@ -203,7 +203,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
 <details>
   <summary>Click here to see the instructions for wireguard-go (software implementation).</summary>
 
-  * **Prerequisuite:** Make sure the wireguard-go container is installed as instructed at the [wireguard-go repo](https://github.com/boostchicken/udm-utilities/tree/master/wireguard-go). After this step, you should have the directory `/mnt/data/wireguard` and the run script `/mnt/data/on_boot.d/20-wireguard.sh` installed.
+  * **PREREQUISITE:** Make sure the wireguard-go container is installed as instructed at the [wireguard-go repo](https://github.com/boostchicken/udm-utilities/tree/master/wireguard-go). After this step, you should have the directory `/mnt/data/wireguard` and the run script `/mnt/data/on_boot.d/20-wireguard.sh` installed.
   * The wireguard-go container only supports a single interface - wg0. This means you cannot connect to multiple wireguard servers. If you want to use multiple servers with this script, then use the WireGuard kernel module instead as explained above. 
   * wireguard-go is a software implementation of WireGuard, and will have reduced performance compared to the kernel module. However, wireguard-go is not dependent on your UDM/P's kernel version, and will not break when your UDM/P updates.
   
@@ -349,11 +349,191 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
   
 </details>
 
+<details>
+  <summary>Click here to see the instructions for OpenConnect (i.e. AnyConnect).</summary>
+
+1. SSH into the UDM/P (assuming it's on 192.168.1.254).
+
+    ```sh
+    ssh root@192.168.1.254
+    ```
+  
+2. Download the scripts package and extract it to `/mnt/data/split-vpn/vpn`.
+
+    ```sh
+    cd /mnt/data
+    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/vpn
+    cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/vpn/*" -o -j -d vpn && chmod +x vpn/*.sh
+    ```
+    
+3. Create a directory for your OpenConnect configuration files under `/mnt/data/split-vpn/openconnect`, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`, and copy any certificates needed or other client files for your configuration. As an example below, we are going to connect a server that only uses a username/password, so no certificate is needed, but we have to create a password.txt file and put the password inside it.
+  
+    ```sh
+    mkdir -p /mnt/data/split-vpn/openconnect/server1
+    cd /mnt/data/split-vpn/openconnect/server1
+    cp /mnt/data/split-vpn/vpn/vpn.conf.sample vpn.conf
+    echo "mypassword" > password.txt
+    ```
+  
+4. In the current folder, create a run script that will run the OpenConnect container called `run-vpn.sh`, and fill it with the following code:
+  
+    * Tip: When you run vim, press 'i' to enter insert mode, right click on vim -> paste, press 'ESC' to exit insert mode, type ':wq' to save and exit.
+  
+    ```sh
+    #!/bin/sh
+    cd "/mnt/data/split-vpn/openconnect/server1"
+    source ./vpn.conf
+    podman rm -f openconnect-${DEV} &> /dev/null
+    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up
+    podman run -id --privileged  --name=openconnect-${DEV} \
+        --network host --pid=host \
+        -e TZ="$(cat /etc/timezone)" \
+        -v "${PWD}:/etc/split-vpn/config" \
+        -v "/mnt/data/split-vpn/vpn:/etc/split-vpn/vpn" \
+        -w "/etc/split-vpn/config" \
+        --restart on-failure \
+        peacey/udm-openconnect \
+        bash -c "openconnect -s /etc/split-vpn/vpn/vpnc-script -i ${DEV} --reconnect-timeout 1 -u myusername --passwd-on-stdin vpn.server1.com < password.txt &> openconnect.log"
+    ```
+    
+    * Make sure the 2nd line points to the correct directory with your vpn configuration files.
+    * You can modify the options to openconnect in the last line for other authentication types (like certificates). See the OpenConnect authentication options [here](https://www.infradead.org/openconnect/connecting.html). These parameters are for a server that uses a username/password to login.
+    * Make sure you change "myusername" in the last line to your username, and "vpn.server1.com" to your VPN server's domain or IP. Make sure you also created the password.txt file with your password.
+    * The `--restart on-failure` will make podman try to restart the VPN connection if OpenConnect exits because of a connection error. You can also modify the reconnect timeout via the `--reconnect-timeout 1` option to openconnect in the last line.
+    * If you do not want to run the VPN in the background (e.g. for testing), remove the "d" from `podman run -id` in the 5th line.
+    * This code writes the output to openconnect.log in the current folder. 
+  
+5. Give the script executable permissions.
+  
+  ```sh
+  chmod +x run-vpn.sh
+  ```
+  
+6. Run the script from the configuration folder.
+  
+  ```sh
+  ./run-vpn.sh
+  ```
+  
+  * If you need to bring down the tunnel to restore Internet access to forced clients, run:
+    
+    ```sh
+    killall -TERM openconnect
+    podman rm -f openconnect-tun0
+    ````
+    * Replace tun0 in the last line with the DEV you configured in vpn.conf (default is tun0). You can also use `kill -TERM $(pgrep -f "openconnect.*tun0")` to kill only the tun0 openconnect instance if you have multiple servers connected.
+  
+7. The first time the script runs, it will download the OpenConnect docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
+    
+    * If the script ran successfully, check the `openconnect.log` file by running `cat openconnect.log`. If the connection is working, you should see that OpenConnect established a connection without errors an that split-vpn ran.
+  
+8. If the connection works, check each client to make sure they are on the VPN by doing the following.
+
+    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+    
+      ```sh
+      curl -4 ifconfig.co
+      curl -6 ifconfig.co
+      ```
+        
+      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
+
+    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
+    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
+    
+9. If you want to continue blocking Internet access to forced clients after the openconnect client is shut down, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
+    
+10. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+
+11. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+  
+</details>
+
+<details>
+  <summary>Click here to see the instructions for an external VPN client setup on another computer on your network (nexthop).</summary>
+
+  * **PREREQUISITE:** Make sure your computer is connected to the VPN and is setup to forward IPv4 and IPv6 packets. You also need to setup a masquerade/SNAT rule on the VPN tunnel interface to make forwarded traffic work properly on the Internet. 
+  * On a Linux system, the following commands run as root set up IP forwarding and masquerade rules (assuming tun0 is your VPN tunnel interface).
+  
+    ```sh
+    sysctl -w net.ipv4.ip_forward=1
+    sysctl -w net.ipv6.conf.all.forwarding=1
+    sysctl -w net.ipv6.conf.default.forwarding=1
+    iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+    ip6tables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+    ```
+  
+1. After your VPN computer is set up correctly, SSH into the UDM/P (assuming it's on 192.168.1.254).
+
+    ```sh
+    ssh root@192.168.1.254
+    ```
+  
+2. Download the scripts package and extract it to `/mnt/data/split-vpn/vpn`.
+
+    ```sh
+    cd /mnt/data
+    mkdir /mnt/data/split-vpn && mkdir /mnt/data/split-vpn/vpn
+    cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/vpn/*" -o -j -d vpn && chmod +x vpn/*.sh
+    ```
+    
+3. Create a directory for your VPN configuration, and copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`.
+  
+    ```sh
+    mkdir -p /mnt/data/split-vpn/nexthop/mycomputer
+    cd /mnt/data/split-vpn/nexthop/mycomputer
+    cp /mnt/data/split-vpn/vpn/vpn.conf.sample vpn.conf
+    ```
+
+4. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
+  
+   * The option `GATEWAY_TABLE` is set to "disabled" if your nexthop computer is on your LAN (most likely it is, as you wouldn't want to send unencrypted traffic over your WAN). The connection will not work if GATEWAY_TABLE is not set to "disbaled" for LAN computers. 
+   * The option `VPN_PROVIDER` is set to "nexthop".
+   * The option `VPN_ENDPOINT_IPV4` and `VPN_ENDPOINT_IPV6` is set to the IP of the computer on your network that is running the VPN client that you want to redirect traffic to. If your VPN computer does not support IPv6, then only set the IPv4 address. 
+   * The option `DEV` is set to the bridge interface that your VPN computer is on, for example "br0" for main LAN or "br6" for VLAN 6 (i.e.: VLAN X is on interface brX).
+  
+5. Run the split-vpn up command in this folder to bring up the rules to force traffic to the VPN. Change "br0" to the interface your VPN computer is on, and "mycomputer" to the nickname you want to refer to this computer with when you bring down the VPN connection. 
+
+    ```sh
+    /mnt/data/split-vpn/vpn/updown.sh br0 up mycomputer
+    ```
+  
+      * If you need to bring down the WireGuard tunnel and resume normal Internet access to your forced clients, run the following commands in this folder:
+  
+      ```sh
+      cd /mnt/data/split-vpn/nexthop/mycomputer
+      /mnt/data/split-vpn/vpn/updown.sh br0 down mycomputer
+      ```
+  
+6. Check each client to make sure they are on the VPN by doing the following.
+
+    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+    
+      ```sh
+      curl -4 ifconfig.co
+      curl -6 ifconfig.co
+      ```
+        
+      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
+
+    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
+    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
+    
+7. If you want to block Internet access to forced clients if the wireguard tunnel is brought down via wg-quick, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
+    
+8. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+
+9. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+
+</details>
+
 ## How do I run this at boot?
 
 You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-utilities/tree/master/on-boot-script) to run the split-vpn script at boot. The boot script survives across firmware upgrades too. 
   
-Set-up UDM Utilities Boot Script by following the instructions [here](https://github.com/boostchicken/udm-utilities/blob/master/on-boot-script/README.md) before following the instructions below.
+**PREREQUISITE**: Set-up UDM Utilities Boot Script by following the instructions [here](https://github.com/boostchicken/udm-utilities/blob/master/on-boot-script/README.md) before following the instructions below.
 
 <details>
   <summary>Click here to see the instructions for OpenVPN.</summary>
@@ -420,6 +600,40 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
 1. The wireguard-go boot script should already be installed at `/mnt/data/on_boot.d/20-wireguard.sh` if you followed the instructions [above](#how-do-i-use-this), so no further setup is needed to make it run at boot.
   
 2. **OPTIONAL**: Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN and might leak their real IP, because the kill switch has not been activated yet. Read the queston *How can I block Internet access until after this script runs at boot?* in the [FAQ below](#faq) to see how to solve this problem and block Internet access until after this script runs.
+  
+</details>
+  
+<details>
+  <summary>Click here to see the instructions for OpenConnect.</summary>
+    
+1. You should already have a `run-vpn.sh` script created if you followed the OpenConnect instructions above. Simply copy that script to /mnt/data/on_boot.d/99-run-vpn.sh and make sure it has executable permissions.
+  
+    ```sh
+    cp /mnt/data/split-vpn/openconnect/server1/run-vpn.sh /mnt/data/on_boot.d/99-run-vpn.sh
+    chmod +x /mnt/data/on_boot.d/99-run-vpn.sh
+    ```
+  
+2. **OPTIONAL**: Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN and might leak their real IP, because the kill switch has not been activated yet. Read the queston *How can I block Internet access until after this script runs at boot?* in the [FAQ below](#faq) to see how to solve this problem and block Internet access until after this script runs.
+  
+</details>
+
+<details>
+  <summary>Click here to see the instructions for nexthop (external VPN client).</summary>
+    
+1. Create a new file under `/mnt/data/on_boot.d/99-run-vpn.sh` and fill it with the following. 
+
+    ```sh
+    #!/bin/sh
+    
+    # Load configuration and bring routes up
+    cd /mnt/data/split-vpn/nexthop/mycomputer
+    source ./vpn.conf
+    /mnt/data/split-vpn/vpn/updown.sh ${DEV} up mycomputer
+    ```
+  
+2. Run `chmod +x /mnt/data/on_boot.d/99-run-vpn.sh` to give the script execute permissions. 
+3. That's it. Now the VPN rules will be added at every boot. Make sure your VPN computer is set up correctly to always have the VPN on as well. 
+4. **OPTIONAL**: Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN and might leak their real IP, because the kill switch has not been activated yet. Read the queston *How can I block Internet access until after this script runs at boot?* in the [FAQ below](#faq) to see how to solve this problem and block Internet access until after this script runs. 
   
 </details>
 
@@ -518,6 +732,72 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   * No, you cannot. The wireguard-go container only supports a single interface named wg0. It cannot be used to connect an interface named something else, so only one interface is supported with this configuration. For multiple interfaces, you need to either use the kernel module or build your own docker container for wireguard-go that supports multiple interfaces (not covered here).
   
 </details>
+  
+<details>  
+<summary>Can I route clients to different VPN servers for OpenConnect?</summary>
+  
+  * Yes you can. Simply make a separate directory for each VPN server, and give them each a vpn.conf file with the clients you wish to force through them. Make sure the options `ROUTE_TABLE`, `MARK`, `PREFIX`, `PREF`, and `DEV` are unique for each `vpn.conf` file so the different VPN servers don't share the same tunnel device, route table, or fwmark. 
+  
+  * Afterwards, modify your run script like so to combine multiple instances. Note that you need to cd into the correct configuration directory for each different VPN server before running the container so that the correct config file is used each time. Also make sure you are using the correct server address for each one and other options.
+  
+      ```sh
+      #!/bin/sh
+  
+      # Load configuration for server1
+      cd "/mnt/data/split-vpn/openconnect/server1"
+      source ./vpn.conf
+      podman rm -f openconnect-${DEV} &> /dev/null
+      /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up
+      podman run -id --privileged  --name=openconnect-${DEV} \
+          --network host --pid=host \
+          -e TZ="$(cat /etc/timezone)" \
+          -v "${PWD}:/etc/split-vpn/config" \
+          -v "/mnt/data/split-vpn/vpn:/etc/split-vpn/vpn" \
+          -w "/etc/split-vpn/config" \
+          --restart on-failure \
+          peacey/udm-openconnect \
+          bash -c "openconnect -s /etc/split-vpn/vpn/vpnc-script -i ${DEV} --reconnect-timeout 1 -u myusername --passwd-on-stdin vpn.server1.com < password.txt &> openconnect.log"
+  
+      # Load configuration for server2
+      cd "/mnt/data/split-vpn/openconnect/server2"
+      source ./vpn.conf
+      podman rm -f openconnect-${DEV} &> /dev/null
+      /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up
+      podman run -id --privileged  --name=openconnect-${DEV} \
+          --network host --pid=host \
+          -e TZ="$(cat /etc/timezone)" \
+          -v "${PWD}:/etc/split-vpn/config" \
+          -v "/mnt/data/split-vpn/vpn:/etc/split-vpn/vpn" \
+          -w "/etc/split-vpn/config" \
+          --restart on-failure \
+          peacey/udm-openconnect \
+          bash -c "openconnect -s /etc/split-vpn/vpn/vpnc-script -i ${DEV} --reconnect-timeout 1 -u myusername2 --passwd-on-stdin vpn.server2.com < password.txt &> openconnect.log"
+      ```
+
+</details>
+  
+<details>  
+  <summary>Can I route clients to different VPN servers for nexthop option?</summary>
+  
+  * Yes you can. Simply make a separate directory for each VPN server, and give them each a vpn.conf file with the clients you wish to force through them. Make sure the options `ROUTE_TABLE`, `MARK`, `PREFIX`, and `PREF` are unique for each `vpn.conf` file so the different VPN servers don't share the same route table, or fwmark. 
+  
+  * Afterwards, modify your run script like so. Note that you need to cd into the correct configuration directory for each different VPN server before running the wg-quick command so that the correct config file is used each time, and make sure to use the correct nickname for each configuration with the updown command.
+  
+    ```sh
+    #!/bin/sh
+    
+    # Load configuration and bring routes up
+    cd /mnt/data/split-vpn/nexthop/mycomputer
+    source ./vpn.conf
+    /mnt/data/split-vpn/vpn/updown.sh ${DEV} up mycomputer
+  
+    # Load configuration and bring routes up
+    cd /mnt/data/split-vpn/nexthop/myothercomputer
+    source ./vpn.conf
+    /mnt/data/split-vpn/vpn/updown.sh ${DEV} up myothercomputer
+    ```
+
+</details>
 
 <details>
   <summary>Can I force/exempt domains to the VPN instead of just IPs?</summary>
@@ -567,12 +847,34 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
       cd /mnt/data/split-vpn/wireguard/mullvad
       wg-quick down ./wg0.conf
       ```
+  
     * **wireguard-go:** Stop the container and run the split-vpn down command in the wireguard configuration directory.
     
       ```sh
       cd /mnt/data/wireguard
       podman stop wireguard
       /mnt/data/split-vpn/vpn/updown.sh wg0 down
+      ```
+  
+    * **OpenConnect:** Send the openconnect process the TERM signal to bring it down.
+
+        1. If you want to kill all openconnect instances.
+
+            ```sh
+            killall -TERM openconnect
+            ```
+
+        2. If you want to kill a specific openconnect instance using tun0.
+
+            ```sh
+            kill -TERM $(pgrep -f "openconnect.*tun0")
+            ```
+  
+    * **Nexthop:** Change to the directory of your vpn.conf configuration and run the split-vpn down command. Make sure to use the correct nickname and interface.
+  
+      ```sh
+      cd /mnt/data/split-vpn/nexthop/mycomputer
+      /mnt/data/split-vpn/vpn/updown.sh br0 down mycomputer
       ```
   
 </details>
@@ -584,7 +886,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   
     * If you don't want to delete the kill switch and leak your real IP, re-run the run script or command to bring the VPN back up again.
 
-    * If you want to delete the kill switch so your forced clients can access your normal Internet again, run the following command (replace tun0 with the device you defined in the config file) after changing to the directory with the vpn.conf file. This command applies to OpenVPN and WireGuard.
+    * If you want to delete the kill switch so your forced clients can access your normal Internet again, change to the directory with the vpn.conf file and run the following command (replace tun0 with the device you defined in the config file). This command applies to all VPN types (OpenVPN, WireGuard, OpenConnect, Nexthop).
     
         ```sh
         cd /mnt/data/split-vpn/openvpn/nordvpn
@@ -667,6 +969,8 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   * **For OpenVPN:** Yes, as long as you add the `--ping-restart X` option to the openvpn command line when you run it. This ensures that if there is a network disconnect for any reason, the OpenVPN client will restart and try to re-configure itself after X seconds until it connects again. The killswitch will still be active during the restart to block non-VPN traffic as long as you set `REMOVE_KILLSWITCH_ON_EXIT=0` in the config.
   
   * **For WireGuard:** The WireGuard protocol is practically stateless, so IP changes will not affect the connection. 
+  
+  * **For OpenConnect:** Yes, as long as you used the `--restart on-failure` option to podman. This ensures that if there is a network disconnect or unexpected exit for any reason, the OpenConnect client will restart and try to re-configure itself until it connects again. The killswitch will still be active during the restart to block non-VPN traffic as long as you set `REMOVE_KILLSWITCH_ON_EXIT=0` in the config.
     
 </details>
 
@@ -713,11 +1017,15 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
 <details>
   <summary>Something went wrong. How can I debug?</summary>
   
-  1. For OpenVPN, first check the openvpn.log file in the VPN server's directory for any errors. 
-  2. For WireGuard, check wireguard.log after you run your run script or check the output of wg-quick up. For wireguard-go, check the output when you run your run script. Make sure you received a handshake in WireGuard or the connection will not work. If you did not receive a handshake, double check your configuration's Private and Public key and other variables.
-  2. Check that the iptable rules, policy-based routes, and custom table routes agree with your configuration. See the previous question for how to look this up.
-  3. If you want to see which line the scripts failed on, open the `updown.sh` and `add-vpn-iptables-rules.sh` scripts and replace the `set -e` line at the top with `set -xe` then rerun the VPN. The `-x` flag tells the shell to print every line before it executes it. 
-  4. Post a bug report if you encounter any reproducible issues. 
+  * First, force the VPN down by following the questions above *How do I safely shutdown the VPN?* and *The VPN exited or crashed and now I can't access the Internet on my devices. What do I do?*
+    * Try to start the VPN again after you brought the rules down and see if you still encounter the problem. 
+  * Check the log files.
+    * For OpenVPN, first check the openvpn.log file in the VPN server's directory for any errors. 
+    * For WireGuard, check wireguard.log after you run your run script or check the output of wg-quick up. For wireguard-go, check the output when you run your run script. Make sure you received a handshake in WireGuard or the connection will not work. If you did not receive a handshake, double check your configuration's Private and Public key and other variables.
+    * For OpenConnect, check the openconnect.log file in the VPN server's directory for any errors.
+  * Check that the iptable rules, policy-based routes, and custom table routes agree with your configuration. See the previous question for how to look this up.
+  * If you want to see which line the scripts failed on, open the `updown.sh` and `add-vpn-iptables-rules.sh` scripts and replace the `set -e` line at the top with `set -xe` then rerun the VPN. The `-x` flag tells the shell to print every line before it executes it. 
+  * Post a bug report if you encounter any reproducible issues. 
   
 </details>
 
@@ -983,7 +1291,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   <details>
     <summary>DNS_IPV4_IP, DNS_IPV4_PORT</summary>
       Redirect DNS IPv4 traffic of VPN-forced clients to this IP and port.
-      If set to "DHCP", the DNS will try to be obtained from the DHCP options that OpenVPN sends. DHCP option is only supported on OpenVPN.
+      If set to "DHCP", the DNS will try to be obtained from the DHCP options that the VPN server sends. DHCP option is only supported for OpenVPN or OpenConnect.
       If set to "REJECT", DNS requests over IPv6 will be blocked instead. 
       Note that many VPN providers redirect all DNS traffic to their servers, so redirection to other IPs might not work on all providers.
       DNS redirects to a local address, or rejecting DNS traffic works for all providers.
@@ -1010,12 +1318,13 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   <details>
     <summary>DNS_IPV6_IP, DNS_IPV6_PORT</summary>
       Redirect DNS IPv6 traffic of VPN-forced clients to this IP and port. 
+      If set to "DHCP", the DNS will try to be obtained from the DHCP options that the VPN server sends. DHCP option is only supported for OpenConnect.
       If set to "REJECT", DNS requests over IPv6 will be blocked instead. The REJECT option is recommended to be enabled for VPN providers that don't support IPv6, to eliminate any IPv6 DNS leaks.
       Note that many VPN providers redirect all DNS traffic to their servers, so redirection to other IPs might not work on all providers.
       DNS redirects to a local address, or rejecting DNS traffic works for all providers.
       Make sure to set DNS_IPV6_INTERFACE if redirecting to a local DNS address. 
   
-      Format: [IP] or "REJECT"
+      Format: [IP] or "DHCP" or "REJECT"
       Example: DNS_IPV6_IP="2606:4700:4700::64"
       Example: DNS_IPV6_IP="REJECT"
       Example: DNS_IPV6_PORT=53
@@ -1077,14 +1386,14 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
     <summary>VPN_PROVIDER</summary>
      The VPN provider you are using with this script.
     
-      Format: "openvpn" for OpenVPN (default), or "external" for wireguard or other external providers.
+      Format: "openvpn" for OpenVPN (default), "openconnect" for OpenConnect, or "external" for wireguard or other external providers.
       Example: VPN_PROVIDER="openvpn"
 
   </details>
     
   <details>
     <summary>VPN_ENDPOINT_IPV4</summary>
-    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv4 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN automatically passes the VPN endpoint IP to the script and will override this value.
+    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv4 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN and OpenConnect automatically passes the VPN endpoint IP to the script and will override this value.
     
       Format: [IP]
       Example: VPN_ENDPOINT_IPV4="2.2.2.2"
@@ -1093,7 +1402,7 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   
   <details>
     <summary>VPN_ENDPOINT_IPV6</summary>
-    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv6 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN automatically passes the VPN endpoint IP to the script and will override this value.
+    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv6 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN and OpenConnect automatically passes the VPN endpoint IP to the script and will override this value.
     
       Format: [IP]
       Example: VPN_ENDPOINT_IPV6="2606:43:ee::23"
@@ -1102,12 +1411,21 @@ Set-up UDM Utilities Boot Script by following the instructions [here](https://gi
   
   <details>
     <summary>GATEWAY_TABLE</summary>
-    Set this to the route table that contains the gateway route, or "auto". "201" if you're using Ethernet, "202" for SFP+, and "203" for U-LTE. Default is "auto" which works with WAN failover and automatically changes the endpoint via gateway route when the WAN or gateway routes changes.
+    Set this to the route table that contains the gateway route, "auto", or "disabled". The Ubiquiti route table are "201" if you're using Ethernet, "202" for SFP+, and "203" for U-LTE. Default is "auto" which works with WAN failover and automatically changes the endpoint via gateway route when the WAN or gateway routes changes. Set to "disabled" for nexthop option to connect to a LAN computer. 
     
-      Format: [Route Table Number] or "auto" (default)
+      Format: [Route Table Number] or "auto" (default), or "disabled".
       Example: GATEWAY_TABLE="auto"
                GATEWAY_TABLE="201"
 
+  </details>
+  
+  <details>
+    <summary>DISABLE_DEFAULT_ROUTE</summary>
+    Set this to 1 to disable adding the default route. This means only non-default routes the VPN sends will be added. This option only works for OpenVPN and OpenConnect. For WireGuard, modify the AllowedIPs variable in your wireguard config so WireGuard doesn't add default routes.
+    
+      Format: 0 (default) or 1
+      Example: DISABLE_DEFAULT_ROUTE=1
+    
   </details>
   
   <details>
