@@ -1,0 +1,530 @@
+#!/bin/sh
+#
+# Originally part of vpnc source code:
+# © 2005-2012 Maurice Massar, Jörg Mayer, Antonio Borneo et al.
+# © 2009-2012 David Woodhouse <dwmw2@infradead.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+################
+#
+# List of parameters passed through environment
+#* reason                       -- why this script was called, one of: pre-init connect disconnect reconnect attempt-reconnect
+#* VPNGATEWAY                   -- VPN gateway address (always present)
+#* TUNDEV                       -- tunnel device (always present)
+#* IDLE_TIMEOUT			-- gateway's idle timeout in seconds (OpenConnect v8.06+); unused
+#* INTERNAL_IP4_ADDRESS         -- address (always present)
+#* INTERNAL_IP4_MTU             -- MTU (often unset)
+#* INTERNAL_IP4_NETMASK         -- netmask (often unset)
+#* INTERNAL_IP4_NETMASKLEN      -- netmask length (often unset)
+#* INTERNAL_IP4_NETADDR         -- address of network (only present if netmask is set)
+#* INTERNAL_IP4_DNS             -- list of DNS servers
+#* INTERNAL_IP4_NBNS            -- list of WINS servers
+#* INTERNAL_IP6_ADDRESS         -- IPv6 address
+#* INTERNAL_IP6_NETMASK         -- IPv6 netmask
+#* INTERNAL_IP6_DNS             -- IPv6 list of dns servers
+#* CISCO_DEF_DOMAIN             -- default domain name
+#* CISCO_BANNER                 -- banner from server
+#* CISCO_SPLIT_DNS              -- DNS search domain list
+#* CISCO_SPLIT_INC              -- number of networks in split-network-list
+#* CISCO_SPLIT_INC_%d_ADDR      -- network address
+#* CISCO_SPLIT_INC_%d_MASK      -- subnet mask (for example: 255.255.255.0)
+#* CISCO_SPLIT_INC_%d_MASKLEN   -- subnet masklen (for example: 24)
+#* CISCO_SPLIT_INC_%d_PROTOCOL  -- protocol (often just 0); unused
+#* CISCO_SPLIT_INC_%d_SPORT     -- source port (often just 0); unused
+#* CISCO_SPLIT_INC_%d_DPORT     -- destination port (often just 0); unused
+#* CISCO_IPV6_SPLIT_INC         -- number of networks in IPv6 split-network-list
+#* CISCO_IPV6_SPLIT_INC_%d_ADDR -- IPv6 network address
+#* CISCO_IPV6_SPLIT_INC_$%d_MASKLEN -- IPv6 subnet masklen
+#
+# The split tunnel variables above have *_EXC* counterparts for network
+# addresses to be excluded from the VPN tunnel.
+
+# FIXMEs:
+
+# Section A: route handling
+
+# 1) The 3 values CISCO_SPLIT_INC_%d_PROTOCOL/SPORT/DPORT are currently being ignored
+#   In order to use them, we'll probably need os specific solutions
+#   * Linux: iptables -t mangle -I PREROUTING <conditions> -j ROUTE --oif $TUNDEV
+#       This would be an *alternative* to changing the routes (and thus 2) and 3)
+#       shouldn't be relevant at all)
+# 2) There are two different functions to set routes: generic routes and the
+#   default route. Why isn't the defaultroute handled via the generic route case?
+# 3) In the split tunnel case, all routes but the default route might get replaced
+#   without getting restored later. We should explicitely check and save them just
+#   like the defaultroute
+# 4) Replies to a dhcp-server should never be sent into the tunnel
+
+# Section B: Split DNS handling
+
+# 1) Maybe dnsmasq can do something like that
+# 2) Parse DNS packets going out via tunnel and redirect them to original DNS-server
+
+# ======== For test logging (CI/CD will uncomment automatically) =========
+
+#TRACE# echo "------------------"
+#TRACE# echo "vpnc-script environment:"
+#TRACE# env | egrep '^(CISCO_|INTERNAL_IP|VPNGATEWAY|TUNDEV|IDLE_TIMEOUT|reason)' | sort
+#TRACE# echo "------------------"
+#TRACE# set -x
+
+# =========== script (variable) setup ====================================
+
+PATH=/sbin:/usr/sbin:$PATH
+
+OS="`uname -s`"
+
+HOOKS_DIR=/etc/split-vpn/vpn/hooks
+DEFAULT_ROUTE_FILE=/var/run/vpnc/defaultroute.${PPID}
+DEFAULT_ROUTE_FILE_IPV6=/var/run/vpnc/defaultroute_ipv6.${PPID}
+SCRIPTNAME=`basename $0`
+
+# Source current vpn.conf for ROUTE_TABLE
+source ./vpn.conf
+
+# Default to a table of 101 if not given
+if [ -z "${ROUTE_TABLE}" ]; then
+	ROUTE_TABLE=101
+fi
+
+# some systems, eg. Darwin & FreeBSD, prune /var/run on boot
+if [ ! -d "/var/run/vpnc" ]; then
+	mkdir -p /var/run/vpnc
+	[ -x /sbin/restorecon ] && /sbin/restorecon /var/run/vpnc
+fi
+
+IPROUTE="`which ip 2> /dev/null | grep '^/'`"
+route_syntax_del="del"
+
+# =========== script hooks =================================================
+
+run_hooks() {
+	HOOK="$1"
+
+	if [ -d ${HOOKS_DIR}/${HOOK}.d ]; then
+		for script in ${HOOKS_DIR}/${HOOK}.d/* ; do
+			[ -f $script ] && . $script
+		done
+	fi
+}
+
+# =========== tunnel interface handling ====================================
+
+do_ifconfig() {
+	if [ -n "$INTERNAL_IP4_MTU" ]; then
+		MTU=$INTERNAL_IP4_MTU
+	elif [ -n "$IPROUTE" ]; then
+		MTUDEV=`$IPROUTE route get "$VPNGATEWAY" | sed -ne 's/^.*dev \([a-z0-9]*\).*$/\1/p'`
+		MTU=`$IPROUTE link show "$MTUDEV" | sed -ne 's/^.*mtu \([[:digit:]]\+\).*$/\1/p'`
+		if [ -n "$MTU" ]; then
+			MTU=`expr $MTU - 88`
+		fi
+	fi
+
+	if [ -z "$MTU" ]; then
+		MTU=1412
+	fi
+
+	$IPROUTE link set dev "$TUNDEV" up mtu "$MTU"
+	$IPROUTE addr add "$INTERNAL_IP4_ADDRESS/32" peer "$INTERNAL_IP4_ADDRESS" dev "$TUNDEV"
+	if [ -n "$INTERNAL_IP4_NETMASK" ]; then
+		set_network_route "$INTERNAL_IP4_NETADDR" "$INTERNAL_IP4_NETMASK" "$INTERNAL_IP4_NETMASKLEN" "$TUNDEV"
+	fi
+
+	# If the netmask is provided, it contains the address _and_ netmask
+	if [ -n "$INTERNAL_IP6_ADDRESS" ] && [ -z "$INTERNAL_IP6_NETMASK" ]; then
+		INTERNAL_IP6_NETMASK="$INTERNAL_IP6_ADDRESS/128"
+	fi
+	if [ -n "$INTERNAL_IP6_NETMASK" ]; then
+		$IPROUTE -6 addr add $INTERNAL_IP6_NETMASK dev $TUNDEV
+	fi
+}
+
+# =========== route handling ====================================
+
+fix_ip_get_output () {
+	sed -e 's/ /\n/g' | \
+		sed -ne "1 s|\$|${1}|p;/via/{N;p};/dev/{N;p};/src/{N;p};/mtu/{N;p};/metric/{N;p}"
+}
+
+set_default_route() {
+	if [ "${DISABLE_DEFAULT_ROUTE}" = "1" ]; then
+		return
+	fi
+	$IPROUTE route show table ${ROUTE_TABLE} | grep '^0.0.0.0/1' | fix_ip_get_output > "$DEFAULT_ROUTE_FILE"
+	$IPROUTE route replace 0.0.0.0/1 dev "$TUNDEV" table ${ROUTE_TABLE}
+	$IPROUTE route replace 128.0.0.0/1 dev "$TUNDEV" table ${ROUTE_TABLE}
+	$IPROUTE route flush cache table ${ROUTE_TABLE} 2>/dev/null
+}
+
+set_network_route() {
+	NETWORK="$1"
+	NETMASK="$2"
+	NETMASKLEN="$3"
+	NETDEV="$4"
+	NETGW="$5"
+	if [ -n "$NETGW" ]; then
+		$IPROUTE route replace "$NETWORK/$NETMASKLEN" dev "$NETDEV" via "$NETGW" table ${ROUTE_TABLE}
+	else
+		$IPROUTE route replace "$NETWORK/$NETMASKLEN" dev "$NETDEV" table ${ROUTE_TABLE}
+	fi
+	$IPROUTE route flush cache table ${ROUTE_TABLE} 2>/dev/null
+}
+
+set_exclude_route() {
+	# add explicit route to keep current routing for this target
+	# (keep traffic separate from VPN tunnel)
+	NETWORK="$1"
+	NETMASK="$2"
+	NETMASKLEN="$3"
+	ARGS=`$IPROUTE route get "$NETWORK" 2>/dev/null | fix_ip_get_output "/$NETMASKLEN"`
+	if [ -z "$ARGS" ]; then
+		echo "cannot find route for exclude route $NETWORK/$NETMASKLEN, ignoring" >&2
+		return
+	fi
+	$IPROUTE route replace $ARGS table ${ROUTE_TABLE}
+	$IPROUTE route flush cache table ${ROUTE_TABLE} 2>/dev/null
+}
+
+del_exclude_route() {
+	# FIXME: In theory, this could delete existing routes which are
+	# identical to split-exclude routes specified by VPNGATEWAY
+	NETWORK="$1"
+	NETMASK="$2"
+	NETMASKLEN="$3"
+	$IPROUTE route $route_syntax_del "$NETWORK/$NETMASKLEN" table ${ROUTE_TABLE}
+	$IPROUTE route flush cache table ${ROUTE_TABLE} 2>/dev/null
+}
+
+reset_default_route() {
+	if [ "${DISABLE_DEFAULT_ROUTE}" = "1" ]; then
+		return
+	fi
+	if [ -s "$DEFAULT_ROUTE_FILE" ]; then
+		$IPROUTE route replace `cat "$DEFAULT_ROUTE_FILE"` table ${ROUTE_TABLE}
+		$IPROUTE route flush cache table ${ROUTE_TABLE} 2>/dev/null
+		rm -f -- "$DEFAULT_ROUTE_FILE"
+	fi
+}
+
+del_network_route() {
+	NETWORK="$1"
+	NETMASK="$2"
+	NETMASKLEN="$3"
+	NETDEV="$4"
+	$IPROUTE route $route_syntax_del "$NETWORK/$NETMASKLEN" dev "$NETDEV" table ${ROUTE_TABLE}
+	$IPROUTE route flush cache table ${ROUTE_TABLE} 2>/dev/null
+}
+
+set_ipv6_default_route() {
+	if [ "${DISABLE_DEFAULT_ROUTE}" = "1" ]; then
+		return
+	fi
+	# We don't save/restore IPv6 default route; just add a higher-priority one.
+	$IPROUTE -6 route replace ::/1 dev "$TUNDEV" metric 1 table ${ROUTE_TABLE}
+	$IPROUTE -6 route replace 8000::/1 dev "$TUNDEV" metric 1 table ${ROUTE_TABLE}
+	$IPROUTE -6 route flush cache table ${ROUTE_TABLE} 2>/dev/null
+}
+
+set_ipv6_network_route() {
+	NETWORK="$1"
+	NETMASKLEN="$2"
+	NETDEV="$3"
+	NETGW="$4"
+	if [ -n "$NETGW" ]; then
+		$IPROUTE -6 route replace "$NETWORK/$NETMASKLEN" dev "$NETDEV" via "$NETGW" table ${ROUTE_TABLE}
+	else
+		$IPROUTE -6 route replace "$NETWORK/$NETMASKLEN" dev "$NETDEV" table ${ROUTE_TABLE}
+	fi
+	$IPROUTE route flush cache 2>/dev/null
+}
+
+set_ipv6_exclude_route() {
+	# add explicit route to keep current routing for this target
+	# (keep traffic separate from VPN tunnel)
+	NETWORK="$1"
+	NETMASKLEN="$2"
+	ARGS=`$IPROUTE route get "$NETWORK" 2>/dev/null | fix_ip_get_output "/$NETMASKLEN"`
+	if [ -z "$ARGS" ]; then
+		echo "cannot find route for exclude route $NETWORK/$NETMASKLEN, ignoring" >&2
+		return
+	fi
+	$IPROUTE -6 route replace $ARGS table ${ROUTE_TABLE}
+	$IPROUTE route flush cache table ${ROUTE_TABLE} 2>/dev/null
+}
+
+reset_ipv6_default_route() {
+	if [ "${DISABLE_DEFAULT_ROUTE}" = "1" ]; then
+		return
+	fi
+	$IPROUTE -6 route del ::/1 dev "$TUNDEV" table ${ROUTE_TABLE} &> /dev/null
+	$IPROUTE -6 route del 8000::/1 dev "$TUNDEV" table ${ROUTE_TABLE} &> /dev/null
+	$IPROUTE route flush cache table ${ROUTE_TABLE} 2>/dev/null
+}
+
+del_ipv6_network_route() {
+	NETWORK="$1"
+	NETMASKLEN="$2"
+	NETDEV="$3"
+	$IPROUTE -6 route del "$NETWORK/$NETMASKLEN" dev "$NETDEV" table ${ROUTE_TABLE}
+	$IPROUTE -6 route flush cache table ${ROUTE_TABLE} 2>/dev/null
+}
+
+del_ipv6_exclude_route() {
+	# FIXME: In theory, this could delete existing routes which are
+	# identical to split-exclude routes specificed by VPNGATEWAY
+	NETWORK="$1"
+	NETMASKLEN="$2"
+	$IPROUTE -6 route del "$NETWORK/$NETMASKLEN" table ${ROUTE_TABLE}
+	$IPROUTE -6 route flush cache table ${ROUTE_TABLE} 2>/dev/null
+}
+
+fix_dns_variables() {
+	if [ -n "${INTERNAL_IP4_DNS}" -o -n "${INTERNAL_IP6_DNS}" ]; then
+		dns_servers="${INTERNAL_IP4_DNS} ${INTERNAL_IP6_DNS}"
+		export INTERNAL_IP4_DNS=""
+		export INTERNAL_IP6_DNS=""
+		for dns in ${dns_servers}; do
+			echo "${dns}" | grep -q : && \
+				INTERNAL_IP6_DNS="${INTERNAL_IP6_DNS}${dns} " || \
+					INTERNAL_IP4_DNS="${INTERNAL_IP4_DNS}${dns} "
+		done
+	fi
+}
+
+# ========= Toplevel state handling  =======================================
+
+do_pre_init() {
+	if (exec 6< /dev/net/tun) > /dev/null 2>&1 ; then
+		:
+	else # can't open /dev/net/tun
+		test -e /proc/sys/kernel/modprobe && `cat /proc/sys/kernel/modprobe` tun 2>/dev/null
+		# make sure tun device exists
+		if [ ! -e /dev/net/tun ]; then
+			mkdir -p /dev/net
+			mknod -m 0640 /dev/net/tun c 10 200
+			[ -x /sbin/restorecon ] && /sbin/restorecon /dev/net/tun
+		fi
+		# workaround for a possible latency caused by udev, sleep max. 10s
+		for x in $(seq 100) ; do
+			(exec 6<> /dev/net/tun) > /dev/null 2>&1 && break;
+			sleep 0.1
+		done
+	fi
+}
+
+do_connect() {
+	if [ -n "$CISCO_BANNER" ]; then
+		echo "Connect Banner:"
+		echo "$CISCO_BANNER" | while read LINE ; do echo "|" "$LINE" ; done
+		echo
+	fi
+
+	do_ifconfig
+
+	set_default_route
+	set_ipv6_default_route
+
+	if [ -n "$CISCO_SPLIT_EXC" ]; then
+		i=0
+		while [ $i -lt $CISCO_SPLIT_EXC ] ; do
+			eval NETWORK="\${CISCO_SPLIT_EXC_${i}_ADDR}"
+			eval NETMASK="\${CISCO_SPLIT_EXC_${i}_MASK}"
+			eval NETMASKLEN="\${CISCO_SPLIT_EXC_${i}_MASKLEN}"
+			case "$NETWORK" in
+				0.*|127.*|169.254.*) echo "ignoring non-forwardable exclude route $NETWORK/$NETMASKLEN" >&2 ;;
+				*) set_exclude_route "$NETWORK" "$NETMASK" "$NETMASKLEN" ;;
+			esac
+			i=`expr $i + 1`
+		done
+	fi
+	if [ -n "$CISCO_IPV6_SPLIT_EXC" ]; then
+		# untested
+		i=0
+		while [ $i -lt $CISCO_IPV6_SPLIT_EXC ] ; do
+			eval NETWORK="\${CISCO_IPV6_SPLIT_EXC_${i}_ADDR}"
+			eval NETMASKLEN="\${CISCO_IPV6_SPLIT_EXC_${i}_MASKLEN}"
+			set_ipv6_exclude_route "$NETWORK" "$NETMASKLEN"
+			i=`expr $i + 1`
+		done
+	fi
+	if [ -n "$CISCO_SPLIT_INC" ]; then
+		i=0
+		while [ $i -lt $CISCO_SPLIT_INC ] ; do
+			eval NETWORK="\${CISCO_SPLIT_INC_${i}_ADDR}"
+			eval NETMASK="\${CISCO_SPLIT_INC_${i}_MASK}"
+			eval NETMASKLEN="\${CISCO_SPLIT_INC_${i}_MASKLEN}"
+			if [ "$NETWORK" != "0.0.0.0" ]; then
+				set_network_route "$NETWORK" "$NETMASK" "$NETMASKLEN" "$TUNDEV"
+			else
+				set_default_route
+			fi
+			i=`expr $i + 1`
+		done
+		for i in $INTERNAL_IP4_DNS ; do
+			echo "$i" | grep : >/dev/null || \
+				set_network_route "$i" "255.255.255.255" "32" "$TUNDEV"
+		done
+	elif [ -n "$INTERNAL_IP4_ADDRESS" ]; then
+		set_default_route
+	fi
+	if [ -n "$CISCO_IPV6_SPLIT_INC" ]; then
+		i=0
+		while [ $i -lt $CISCO_IPV6_SPLIT_INC ] ; do
+			eval NETWORK="\${CISCO_IPV6_SPLIT_INC_${i}_ADDR}"
+			eval NETMASKLEN="\${CISCO_IPV6_SPLIT_INC_${i}_MASKLEN}"
+			if [ $NETMASKLEN -eq 0 ]; then
+				set_ipv6_default_route
+			else
+				set_ipv6_network_route "$NETWORK" "$NETMASKLEN" "$TUNDEV"
+			fi
+			i=`expr $i + 1`
+		done
+		for i in $INTERNAL_IP4_DNS ; do
+			if echo "$i" | grep : >/dev/null; then
+				set_ipv6_network_route "$i" "128" "$TUNDEV"
+			fi
+		done
+	elif [ -n "$INTERNAL_IP6_NETMASK" -o -n "$INTERNAL_IP6_ADDRESS" ]; then
+		set_ipv6_default_route
+	fi
+}
+
+do_disconnect() {
+	if [ -n "$CISCO_SPLIT_INC" ]; then
+		i=0
+		while [ $i -lt $CISCO_SPLIT_INC ] ; do
+			eval NETWORK="\${CISCO_SPLIT_INC_${i}_ADDR}"
+			eval NETMASK="\${CISCO_SPLIT_INC_${i}_MASK}"
+			eval NETMASKLEN="\${CISCO_SPLIT_INC_${i}_MASKLEN}"
+			if [ "$NETWORK" != "0.0.0.0" ]; then
+				# FIXME: This doesn't restore previously overwritten
+				#        routes.
+				del_network_route "$NETWORK" "$NETMASK" "$NETMASKLEN" "$TUNDEV"
+			else
+				reset_default_route
+			fi
+			i=`expr $i + 1`
+		done
+		for i in $INTERNAL_IP4_DNS ; do
+			del_network_route "$i" "255.255.255.255" "32" "$TUNDEV"
+		done
+	else
+		reset_default_route
+	fi
+
+	reset_default_route
+	reset_ipv6_default_route
+
+	if [ -n "$CISCO_SPLIT_EXC" ]; then
+		i=0
+		while [ $i -lt $CISCO_SPLIT_EXC ] ; do
+			eval NETWORK="\${CISCO_SPLIT_EXC_${i}_ADDR}"
+			eval NETMASK="\${CISCO_SPLIT_EXC_${i}_MASK}"
+			eval NETMASKLEN="\${CISCO_SPLIT_EXC_${i}_MASKLEN}"
+			case "$NETWORK" in
+				0.*|127.*|169.254.*) ;; # ignoring non-forwardable exclude route
+				*) del_exclude_route "$NETWORK" "$NETMASK" "$NETMASKLEN" ;;
+			esac
+			i=`expr $i + 1`
+		done
+	fi
+	if [ -n "$CISCO_IPV6_SPLIT_EXC" ]; then
+		# untested
+		i=0
+		while [ $i -lt $CISCO_IPV6_SPLIT_EXC ] ; do
+			eval NETWORK="\${CISCO_IPV6_SPLIT_EXC_${i}_ADDR}"
+			eval NETMASKLEN="\${CISCO_IPV6_SPLIT_EXC_${i}_MASKLEN}"
+			del_ipv6_exclude_route "$NETWORK" "$NETMASKLEN"
+			i=`expr $i + 1`
+		done
+	fi
+	if [ -n "$CISCO_IPV6_SPLIT_INC" ]; then
+		i=0
+		while [ $i -lt $CISCO_IPV6_SPLIT_INC ] ; do
+			eval NETWORK="\${CISCO_IPV6_SPLIT_INC_${i}_ADDR}"
+			eval NETMASKLEN="\${CISCO_IPV6_SPLIT_INC_${i}_MASKLEN}"
+			if [ $NETMASKLEN -eq 0 ]; then
+				reset_ipv6_default_route
+			else
+				del_ipv6_network_route "$NETWORK" "$NETMASKLEN" "$TUNDEV"
+			fi
+			i=`expr $i + 1`
+		done
+		for i in $INTERNAL_IP6_DNS ; do
+			del_ipv6_network_route "$i" "128" "$TUNDEV"
+		done
+	elif [ -n "$INTERNAL_IP6_NETMASK" -o -n "$INTERNAL_IP6_ADDRESS" ]; then
+		reset_ipv6_default_route
+	fi
+
+	if [ -n "$INTERNAL_IP4_ADDRESS" ]; then
+		$IPROUTE addr del "$INTERNAL_IP4_ADDRESS/255.255.255.255" peer "$INTERNAL_IP4_ADDRESS" dev "$TUNDEV"
+	fi
+	# If the netmask is provided, it contains the address _and_ netmask
+	if [ -n "$INTERNAL_IP6_ADDRESS" ] && [ -z "$INTERNAL_IP6_NETMASK" ]; then
+		INTERNAL_IP6_NETMASK="$INTERNAL_IP6_ADDRESS/128"
+	fi
+	if [ -n "$INTERNAL_IP6_NETMASK" ]; then
+		$IPROUTE -6 addr del $INTERNAL_IP6_NETMASK dev $TUNDEV
+	fi
+	$IPROUTE link set dev "$TUNDEV" down
+
+}
+
+#### Main
+
+if [ -z "$reason" ]; then
+	echo "this script must be called from vpnc" 1>&2
+	exit 1
+fi
+
+fix_dns_variables
+
+case "$reason" in
+	pre-init)
+		run_hooks pre-init
+		do_pre_init
+		;;
+	connect)
+		run_hooks connect
+		do_connect
+		run_hooks post-connect
+		;;
+	disconnect)
+		run_hooks disconnect
+		do_disconnect
+		run_hooks post-disconnect
+		;;
+	attempt-reconnect)
+		# Invoked before each attempt to re-establish the session.
+		# If the underlying physical connection changed, we might
+		# be left with a route to the VPN server through the VPN
+		# itself, which would need to be fixed.
+		run_hooks attempt-reconnect
+		run_hooks post-attempt-reconnect
+		;;
+	reconnect)
+		# After successfully re-establishing the session.
+		run_hooks reconnect
+		;;
+	*)
+		echo "unknown reason '$reason'. Maybe vpnc-script is out of date" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

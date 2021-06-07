@@ -9,7 +9,7 @@ set -e
 
 # Kill the rule watcher (previously running up/down script for the tunnel device).
 kill_rule_watcher() {
-	for p in $(pgrep -f "sh.*$(basename "$0") $tun "); do
+	for p in $(pgrep -f "sh.*$(basename "$0") $tun .*$nickname"); do
 		if [ $p != $$ ]; then
 			kill -9 $p
 		fi
@@ -36,8 +36,8 @@ run_rule_watcher() {
 					echo "[$(date)] Removed blackhole ${route}."
 			done
 		fi
-		if [ -z "${GATEWAY_TABLE}" -o "${GATEWAY_TABLE}" = "auto" ]; then
-			add_gateway_route
+		if [ "${GATEWAY_TABLE}" = "auto" ]; then
+			add_gateway_routes
 		fi
  		sleep ${WATCHER_TIMER}
 	done) > rule-watcher.log &
@@ -47,10 +47,10 @@ run_rule_watcher() {
 # 201 = Ethernet table, 202 = SFP+ table, 203 = U-LTE.
 get_gateway() {
 	tables=""
-	if [ -z "${GATEWAY_TABLE}" -o "${GATEWAY_TABLE}" = "auto"  ]; then
+	if [ "${GATEWAY_TABLE}" = "auto"  ]; then
 		tables=$(ip rule | sed -En s/".*from all lookup (20[123]).*"/"\1"/p | tail -n1)
-	elif [ -n "$GATEWAY_TABLE" ]; then
-		tables="$GATEWAY_TABLE"
+	elif [ -n "${GATEWAY_TABLE}" ]; then
+		tables="${GATEWAY_TABLE}"
 	fi
 	if [ -z "${tables}" ]; then
 		tables="201 202 203"
@@ -80,15 +80,17 @@ netmask_to_cidr() {
 
 # Add the VPN routes to the custom table for OpenVPN provider.
 # OpneVPN will pass route_* and dev environment variables to this script.
-add_vpn_routes() {
+add_openvpn_routes() {
 	# Flush route table first
 	delete_vpn_routes
 
 	# Add default route to VPN
-	ip route replace 0.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
-	ip route replace 128.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
-	ip -6 route replace ::/1 dev ${dev} table ${ROUTE_TABLE}
-	ip -6 route replace 8000::/1 dev ${dev} table ${ROUTE_TABLE}
+	if [ "${DISABLE_DEFAULT_ROUTE}" != "1" ]; then
+		ip route replace 0.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
+		ip route replace 128.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
+		ip -6 route replace ::/1 dev ${dev} table ${ROUTE_TABLE}
+		ip -6 route replace 8000::/1 dev ${dev} table ${ROUTE_TABLE}
+	fi
 
 	# Add VPN routes from environment variables supplied by OpenVPN
 	# Only check a maximum of 1000 routes. Usually only get < 10.
@@ -120,15 +122,27 @@ add_vpn_routes() {
 	done
 }
 
+add_nexthop_routes() {
+	# Flush route table first
+	delete_vpn_routes
+
+	# Add nexthop routes to route table
+	if [ -n "${VPN_ENDPOINT_IPV4}" ]; then
+		ip route replace 0.0.0.0/1 via ${VPN_ENDPOINT_IPV4} dev ${tun} table ${ROUTE_TABLE}
+		ip route replace 128.0.0.0/1 via ${VPN_ENDPOINT_IPV4} dev ${tun} table ${ROUTE_TABLE}
+	fi
+	if [ -n "${VPN_ENDPOINT_IPV6}" ]; then
+		ip -6 route replace ::/1 via ${VPN_ENDPOINT_IPV6} dev ${tun} table ${ROUTE_TABLE}
+		ip -6 route replace 8000::/1 via ${VPN_ENDPOINT_IPV6} dev ${tun} table ${ROUTE_TABLE}
+	fi
+}
+
 # Add the VPN endpoint -> WAN gateway route.
-add_gateway_route() {
+add_gateway_routes() {
+	if [ "${GATEWAY_TABLE}" = "disabled" ]; then
+		return
+	fi
 	get_gateway
-	if [ -n "${trusted_ip}" -a "${VPN_PROVIDER}" = "openvpn" ]; then
-		VPN_ENDPOINT_IPV4="${trusted_ip}"
-	fi
-	if [ -n "${trusted_ip6}" -a "${VPN_PROVIDER}" = "openvpn" ]; then
-		VPN_ENDPOINT_IPV6="${trusted_ip6}"
-	fi
 	if [ -n "${VPN_ENDPOINT_IPV4}" -a -n "${gateway_ipv4}" ]; then
 		if [ "${gateway_ipv4}" != "${gateway_ipv4_old}" ]; then
 			echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: Using IPv4 gateway from table ${current_table}: ${gateway_ipv4}."
@@ -147,10 +161,11 @@ add_gateway_route() {
 # Helps to prevent leaks during VPN restarts.
 add_blackhole_routes() {
 	if [ "${DISABLE_BLACKHOLE}" = "1" ]; then
-		return
+		delete_blackhole_routes
+	else
+		ip route replace blackhole default table ${ROUTE_TABLE}
+		ip -6 route replace blackhole default table ${ROUTE_TABLE}
 	fi
-	ip route replace blackhole default table ${ROUTE_TABLE}
-	ip -6 route replace blackhole default table ${ROUTE_TABLE}
 }
 
 # Delete the vpn routes only (don't touch blackhole routes)
@@ -159,6 +174,24 @@ delete_vpn_routes() {
 		xargs -I{} sh -c "ip route del {} table ${ROUTE_TABLE}"	
 	ip -6 route show table ${ROUTE_TABLE} | grep -v blackhole | 
 		xargs -I{} sh -c "ip -6 route del {} table ${ROUTE_TABLE}"	
+}
+
+# Delete the gateway routes
+delete_gateway_routes() {
+	if [ -n "${VPN_ENDPOINT_IPV4}" ]; then
+		ip route del "${VPN_ENDPOINT_IPV4}" table ${ROUTE_TABLE} &> /dev/null || true
+	fi
+	if [ -n "${VPN_ENDPOINT_IPV6}" ]; then
+		ip -6 route del "${VPN_ENDPOINT_IPV6}" table ${ROUTE_TABLE} &> /dev/null || true
+	fi
+}
+
+# Delete the blackhole routes only
+delete_blackhole_routes() {
+	ip route show table ${ROUTE_TABLE} | grep blackhole |
+		xargs -I{} sh -c "ip route del {} table ${ROUTE_TABLE}"
+	ip -6 route show table ${ROUTE_TABLE} | grep blackhole |
+		xargs -I{} sh -c "ip -6 route del {} table ${ROUTE_TABLE}"
 }
 
 # Delete all (flush) routes from custom route table.
@@ -171,14 +204,61 @@ delete_all_routes() {
 ### END OF FUNCTIONS ###
 
 # If configuration variables are not present, source config file from the PWD.
+CONFIG_FILE=""
 if [ -z "${MARK}" ]; then
-	echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: Loading configuration from ${PWD}/vpn.conf."
+	CONFIG_FILE="${PWD}/vpn.conf"
 	source ./vpn.conf
 fi
 
 # If no provider was given, assume openvpn for backwards compatibility.
 if [ -z "${VPN_PROVIDER}" ]; then
 	VPN_PROVIDER="openvpn"
+fi
+
+# Assume 1 second timer for watcher if not defined.
+if [ -z "${WATCHER_TIMER}" ]; then
+	WATCHER_TIMER=1
+fi
+
+# Assume auto for gateway table if not defined.
+if [ -z "${GATEWAY_TABLE}" ]; then
+	GATEWAY_TABLE="auto"
+fi
+
+# Get tunnel and state from script arguments, or use environment
+# variables if they exist for openvpn. 
+if [ ${VPN_PROVIDER} = "openvpn" -a -n "${dev}" ]; then
+	tun="${dev}"
+else
+	tun="$1"
+fi
+if [ ${VPN_PROVIDER} = "openvpn" -a -n "${script_type}" ]; then
+	state="${script_type}"
+else
+	state="$2"
+fi
+
+if [ "${VPN_PROVIDER}" = "openvpn" -a -n "${trusted_ip}" ]; then
+	VPN_ENDPOINT_IPV4="${trusted_ip}"
+fi
+if [ "${VPN_PROVIDER}" = "openvpn" -a -n "${trusted_ip6}" ]; then
+	VPN_ENDPOINT_IPV6="${trusted_ip6}"
+fi
+if [ "${VPN_PROVIDER}" = "openconnect" ]; then
+	if [ -n "${VPNGATEWAY}" ]; then
+		echo "${VPNGATEWAY}" | grep -q : && FAMILY=6 || FAMILY=4
+		if [ "$FAMILY" = "4" ]; then
+			VPN_ENDPOINT_IPV4="${VPNGATEWAY}"
+		else
+			VPN_ENDPOINT_IPV6="${VPNGATEWAY}"
+		fi
+	fi
+fi
+
+# Set nickname for nexthop invocation.
+nickname=""
+if [ "${VPN_PROVIDER}" = "nexthop" ]; then
+	nickname="$3"
 fi
 
 # Use the iptables script stored in the directory of this script.
@@ -194,22 +274,9 @@ startup_blackholes="0.0.0.0/1 128.0.0.0/1 ::/1 8000::/1"
 gateway_ipv4=undefined
 gateway_ipv6=undefined
 
-# Assume 1 second timer for watcher if not defined.
-if [ -z "${WATCHER_TIMER}" ]; then
-	WATCHER_TIMER=1
-fi
-
-# Get tunnel and state from script arguments, or use environment
-# variables if they exist for openvpn. 
-if [ ${VPN_PROVIDER} = "openvpn" -a -n "${dev}" ]; then
-	tun="${dev}"
-else
-	tun="$1"
-fi
-if [ ${VPN_PROVIDER} = "openvpn" -a -n "${script_type}" ]; then
-	state="${script_type}"
-else
-	state="$2"
+# Print the config being using
+if [ -n "$CONFIG_FILE" ]; then
+	echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn ${state}: Loading configuration from ${CONFIG_FILE}."
 fi
 
 # When OpenVPN calls this script, script_type is either up or down.
@@ -227,9 +294,12 @@ elif [ "$state" = "pre-up" ]; then
 elif [ "$state" = "up" ]; then
 	add_blackhole_routes
 	if [ "${VPN_PROVIDER}" = "openvpn" -a "${script_context}" != "restart" ]; then
-		add_vpn_routes
+		add_openvpn_routes
 	fi
-	add_gateway_route
+	if [ "${VPN_PROVIDER}" = "nexthop" ]; then
+		add_nexthop_routes
+	fi
+	add_gateway_routes
 	sh ${iptables_script} up $tun
 	run_rule_watcher
 else
@@ -240,7 +310,11 @@ else
 	if [ "${REMOVE_KILLSWITCH_ON_EXIT}" = 1 ]; then
 		# Kill the rule checking daemon.
 		kill_rule_watcher
+		delete_blackhole_routes
+		delete_gateway_routes
 		if [ "${VPN_PROVIDER}" = "openvpn" -a "${script_context}" != "restart" ]; then
+			delete_all_routes
+		elif [ "${VPN_PROVIDER}" = "nexthop" ]; then
 			delete_all_routes
 		fi
 		sh ${iptables_script} down $tun

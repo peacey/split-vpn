@@ -54,24 +54,41 @@ add_rule() {
 # Get the first IPv4 DNS server provided by the VPN server's DHCP options if option is set.
 # These options are found in environment variables foreign_option_i for openvpn.
 get_dns() {
-	if [ "${DNS_IPV4_IP}" != "DHCP" ]; then
-		return
+	if [ "${DNS_IPV4_IP}" = "DHCP" ]; then
+		DNS_IPV4_IP=""
+		if [ "${VPN_PROVIDER}" = "openvpn" ]; then
+			# Only check a maximum of 1000 options. Usually only get 1 or 2.
+			for i in $(seq 1 1000); do
+				foreign_option_i=$(eval echo \$foreign_option_$i)
+				if [ -z "${foreign_option_i}" ]; then
+					break
+				fi
+				dns=$(echo "${foreign_option_i}" | sed -En s/".*dhcp-option DNS ([0-9\.]+).*"/"\1"/p)
+				if [ -z "${dns}" ]; then
+					continue
+				fi
+				DNS_IPV4_IP="${dns}"
+				DNS_IPV4_PORT=53
+				break
+			done
+		elif [ "${VPN_PROVIDER}" = "openconnect" ]; then
+			for i in ${INTERNAL_IP4_DNS}; do
+				DNS_IPV4_IP="$i"
+				DNS_IPV4_PORT=53
+				break
+			done
+		fi
 	fi
-	DNS_IPV4_IP=""
-	# Only check a maximum of 1000 options. Usually only get 1 or 2. 
-	for i in $(seq 1 1000); do
-		foreign_option_i=$(eval echo \$foreign_option_$i)
-		if [ -z "${foreign_option_i}" ]; then
-			break
+	if [ "${DNS_IPV6_IP}" = "DHCP" ]; then
+		DNS_IPV6_IP=""
+		if [ "${VPN_PROVIDER}" = "openconnect" ]; then
+			for i in ${INTERNAL_IP6_DNS}; do
+				DNS_IPV6_IP="$i"
+				DNS_IPV6_PORT=53
+				break
+			done
 		fi
-		dns=$(echo "${foreign_option_i}" | sed -En s/".*dhcp-option DNS ([0-9\.]+).*"/"\1"/p)
-		if [ -z "${dns}" ]; then
-			continue
-		fi
-		DNS_IPV4_IP="${dns}"
-		DNS_IPV4_PORT=53
-		break
-	done
+	fi
 }
 
 # add_ipset_map_rule force/exempt ipset_map
@@ -308,7 +325,6 @@ add_killswitch() {
 	# Create the custom chain
 	iptables -t filter -N ${PREFIX}KILLSWITCH &> /dev/null || true
 	ip6tables -t filter -N ${PREFIX}KILLSWITCH &> /dev/null || true
-	add_rule both filter "OUTPUT -j ${PREFIX}KILLSWITCH" noprefix
 	add_rule both filter "FORWARD -j ${PREFIX}KILLSWITCH" noprefix
 
 	# Reject all VPN traffic (marked) that doesn't go out of the VPN interface
