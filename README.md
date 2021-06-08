@@ -106,7 +106,10 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
   <summary>Click here to see the instructions for WireGuard (kernel module).</summary>
 
   * **PREREQUISITE:** Make sure the WireGuard kernel module is installed via either [wireguard-kmod](https://github.com/tusc/wireguard-kmod) or a [custom kernel](https://github.com/fabianishere/udm-kernel-tools). The WireGuard tools (wg-quick, wg) also need to be installed (included with wireguard-kmod) and accessible from your PATH.
-  * Make sure you run the wireguard setup script from [wireguard-kmod](https://github.com/tusc/wireguard-kmod) once, then test the installation of the module by running `modprobe wireguard` which should return nothing and no errors, and running `wg-quick` which should return the help and no errors. 
+  * Make sure you run the wireguard setup script from [wireguard-kmod](https://github.com/tusc/wireguard-kmod) once.
+  * Before continuing, test the installation of the module by running `modprobe wireguard` which should return nothing and no errors, and running `wg-quick` which should return the help and no errors. 
+    * After you load the module, run `ip link add dev wg0 type wireguard` to test if you can add a wireguard interface successfully. If your UDM locks up and restarts when you do this, then the module is not compatible with your kernel. Check the [wireguard-kmod](https://github.com/tusc/wireguard-kmod) github or your custom kernel for more information.
+    * If adding the interface succeeded, type `ip link del wg0` to delete the wireguard interface before continuing with the steps below.
   * Note that the kernel module is dependent on the software version of your UDMP because each software update usually brings a new kernel version. If you update the UDM/P software, you also need to update the kernel module to the new version once it is released (or compile your own module for the new kernel). The module will fail to run on a kernel it was not compiled for. Hence, you have to be careful that the UDMP doesn't perform a sofware update unexpectedly if you use this module. 
   
 1. SSH into the UDM/P (assuming it's on 192.168.1.254).
