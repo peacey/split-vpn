@@ -1522,3 +1522,9 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
   </details>
   
 </details>
+  
+## License
+  
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. Please see the [LICENSE](https://github.com/peacey/split-vpn/blob/main/LICENSE) for more information. 
+  
+Contact me at peaceyall AT gmail.com or open an issue on GitHub if you have any questions.
