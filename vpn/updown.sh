@@ -170,10 +170,10 @@ add_blackhole_routes() {
 
 # Delete the vpn routes only (don't touch blackhole routes)
 delete_vpn_routes() {
-	ip route show table ${ROUTE_TABLE} | grep -v blackhole | 
+	ip route show table ${ROUTE_TABLE} | grep -v blackhole | cut -d' ' -f1 | 
 		xargs -I{} sh -c "ip route del {} table ${ROUTE_TABLE}"	
-	ip -6 route show table ${ROUTE_TABLE} | grep -v blackhole | 
-		xargs -I{} sh -c "ip -6 route del {} table ${ROUTE_TABLE}"	
+	ip -6 route show table ${ROUTE_TABLE} | grep -v blackhole | cut -d' ' -f1 | 
+		xargs -I{} sh -c "ip -6 route del {} table ${ROUTE_TABLE}"
 }
 
 # Delete the gateway routes
@@ -188,9 +188,9 @@ delete_gateway_routes() {
 
 # Delete the blackhole routes only
 delete_blackhole_routes() {
-	ip route show table ${ROUTE_TABLE} | grep blackhole |
+	ip route show table ${ROUTE_TABLE} | grep blackhole | cut -d' ' -f-2 | 
 		xargs -I{} sh -c "ip route del {} table ${ROUTE_TABLE}"
-	ip -6 route show table ${ROUTE_TABLE} | grep blackhole |
+	ip -6 route show table ${ROUTE_TABLE} | grep blackhole | cut -d' ' -f-2 | 
 		xargs -I{} sh -c "ip -6 route del {} table ${ROUTE_TABLE}"
 }
 

@@ -343,6 +343,15 @@ delete_killswitch() {
 	ip6tables -t filter -X ${PREFIX}KILLSWITCH &> /dev/null || true
 }
 
+delete_dns_routes() {
+	if [ -n "${DNS_IPV4_INTERFACE}" ]; then
+		ip route del "${DNS_IPV4_IP}" table "${ROUTE_TABLE}" || true
+	fi
+	if [ -n "${DNS_IPV6_INTERFACE}" ]; then
+		ip -6 route del "${DNS_IPV6_IP}" table "${ROUTE_TABLE}" || true
+	fi
+}
+
 # If configuration variables are not present, source the config file from the PWD.
 if [ -z "${MARK}" ]; then
 	source ./vpn.conf
@@ -368,10 +377,12 @@ elif [ "$state" = "down" ]; then
 	if [ "${REMOVE_KILLSWITCH_ON_EXIT}" = 1 ]; then
 		delete_chains
 		delete_killswitch
+		delete_dns_routes
 	fi
 elif [ "$state" = "force-down" ]; then
 	delete_chains
 	delete_killswitch
+	delete_dns_routes
 fi
 
 # Flush conntrack if forcing any local interfaces
