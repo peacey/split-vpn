@@ -168,6 +168,28 @@ add_blackhole_routes() {
 	fi
 }
 
+set_vpn_endpoint() {
+	if [ "${VPN_PROVIDER}" = "openvpn" -a -n "${trusted_ip}" ]; then
+		VPN_ENDPOINT_IPV4="${trusted_ip}"
+	fi
+	if [ "${VPN_PROVIDER}" = "openvpn" -a -n "${trusted_ip6}" ]; then
+		VPN_ENDPOINT_IPV6="${trusted_ip6}"
+	fi
+	if [ "${VPN_PROVIDER}" = "openconnect" ]; then
+		if [ -n "${VPNGATEWAY}" ]; then
+			echo "${VPNGATEWAY}" | grep -q : && FAMILY=6 || FAMILY=4
+			if [ "$FAMILY" = "4" ]; then
+				VPN_ENDPOINT_IPV4="${VPNGATEWAY}"
+			else
+				VPN_ENDPOINT_IPV6="${VPNGATEWAY}"
+			fi
+		fi
+	fi
+	if [ -z "${VPN_ENDPOINT_IPV4}" -a -z "${VPN_ENDPOINT_IPV6}" ]; then
+		echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: WARNING: No VPN endpoint found. If your VPN provider is external (wireguard) or nexthop, please set VPN_ENDPOINT_IPV4 or VPN_ENDPOINT_IPV6 to the VPN's IP in your vpn.conf and restart the VPN."
+	fi
+}
+
 # Delete the vpn routes only (don't touch blackhole routes)
 delete_vpn_routes() {
 	ip route show table ${ROUTE_TABLE} | grep -v blackhole | cut -d' ' -f1 | 
@@ -238,23 +260,6 @@ else
 	state="$2"
 fi
 
-if [ "${VPN_PROVIDER}" = "openvpn" -a -n "${trusted_ip}" ]; then
-	VPN_ENDPOINT_IPV4="${trusted_ip}"
-fi
-if [ "${VPN_PROVIDER}" = "openvpn" -a -n "${trusted_ip6}" ]; then
-	VPN_ENDPOINT_IPV6="${trusted_ip6}"
-fi
-if [ "${VPN_PROVIDER}" = "openconnect" ]; then
-	if [ -n "${VPNGATEWAY}" ]; then
-		echo "${VPNGATEWAY}" | grep -q : && FAMILY=6 || FAMILY=4
-		if [ "$FAMILY" = "4" ]; then
-			VPN_ENDPOINT_IPV4="${VPNGATEWAY}"
-		else
-			VPN_ENDPOINT_IPV6="${VPNGATEWAY}"
-		fi
-	fi
-fi
-
 # Set nickname for nexthop invocation.
 nickname=""
 if [ "${VPN_PROVIDER}" = "nexthop" ]; then
@@ -278,6 +283,8 @@ gateway_ipv6=undefined
 if [ -n "$CONFIG_FILE" ]; then
 	echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn ${state}: Loading configuration from ${CONFIG_FILE}."
 fi
+
+set_vpn_endpoint
 
 # When OpenVPN calls this script, script_type is either up or down.
 # This script might also be manually called with force-down to force shutdown 
