@@ -86,8 +86,14 @@ add_openvpn_routes() {
 
 	# Add default route to VPN
 	if [ "${DISABLE_DEFAULT_ROUTE}" != "1" ]; then
-		ip route replace 0.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
-		ip route replace 128.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
+		if [ -n "${route_vpn_gateway}" ]; then
+			ip route replace 0.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
+			ip route replace 128.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
+		else
+			echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: WARNING: OpenVPN did not pass the VPN gateway so connection might not work. Please pass the option '--redirect-gateway def1' to the openvpn command when you run it, or manually set route_vpn_gateway in your vpn.conf."
+			ip route replace 0.0.0.0/1 dev ${dev} table ${ROUTE_TABLE}
+			ip route replace 128.0.0.0/1 dev ${dev} table ${ROUTE_TABLE}
+		fi
 		ip -6 route replace ::/1 dev ${dev} table ${ROUTE_TABLE}
 		ip -6 route replace 8000::/1 dev ${dev} table ${ROUTE_TABLE}
 	fi

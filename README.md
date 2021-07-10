@@ -64,7 +64,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
 
     ```sh
     openvpn --config nordvpn.ovpn \
-            --route-noexec \
+            --route-noexec --redirect-gateway def1 \
             --up /mnt/data/split-vpn/vpn/updown.sh \
             --down /mnt/data/split-vpn/vpn/updown.sh \
             --script-security 2
@@ -88,14 +88,14 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
 
     ```sh
     nohup openvpn --config nordvpn.ovpn \
-                  --route-noexec \
+                  --route-noexec --redirect-gateway def1 \
                   --up /mnt/data/split-vpn/vpn/updown.sh \
                   --down /mnt/data/split-vpn/vpn/updown.sh \
                   --script-security 2 \
                   --ping-restart 15 \
                   --mute-replay-warnings &> openvpn.log &
     ```
-    You can modify the command to change `--ping-restart` or other options as needed. The only requirement is that you run updown.sh script as the up/down script and `--route-noexec` to disable OpenVPN from adding routes to the default table instead of our custom one.
+    You can modify the command to change `--ping-restart` or other options as needed. The only requirement is that you run updown.sh script as the up/down script and `--route-noexec` to disable OpenVPN from adding routes to the default table instead of our custom one. In some cases, `--redirect-gateway def1` is needed to set the correct VPN gateway.
     
 9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 10. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
@@ -560,7 +560,7 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
     source ./vpn.conf
     /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
     nohup openvpn --config nordvpn.ovpn \
-                  --route-noexec \
+                  --route-noexec --redirect-gateway def1 \
                   --up /mnt/data/split-vpn/vpn/updown.sh \
                   --down /mnt/data/split-vpn/vpn/updown.sh \
                   --dev-type tun --dev ${DEV} \
@@ -687,7 +687,7 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
       source ./vpn.conf
       /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
       nohup openvpn --config mullvad.conf \
-                    --route-noexec \
+                    --route-noexec --redirect-gateway def1 \
                     --up /mnt/data/split-vpn/vpn/updown.sh \
                     --down /mnt/data/split-vpn/vpn/updown.sh \
                     --script-security 2 \
@@ -700,7 +700,7 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
       source ./vpn.conf
       /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
       nohup openvpn --config nordvpn.ovpn \
-                    --route-noexec \
+                    --route-noexec --redirect-gateway def1 \
                     --up /mnt/data/split-vpn/vpn/updown.sh \
                     --down /mnt/data/split-vpn/vpn/updown.sh \
                     --script-security 2 \
