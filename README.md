@@ -173,7 +173,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
 
     ```sh
     /mnt/data/wireguard/setup_wireguard.sh
-    wg-quick up wg0.conf
+    wg-quick up ./wg0.conf
     ```
   
     * You can skip the first line if you already setup the wireguard kernel module previously as instructed at [wireguard-kmod](https://github.com/tusc/wireguard-kmod).
