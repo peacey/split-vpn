@@ -141,3 +141,33 @@ MARK=0x9
 PREFIX="VPN_"
 PREF=99
 DEV=tun0
+
+# Callback functions will be invoked in response to VPN events: pre-up, up, down, 
+# force-down using the functions hook_pre_up, hooks_pre_down, hooks_down, and 
+# hooks_force_down respectively. 
+# 
+# As an example, here we are using Pushover to send push notificatiosn in
+# reponse to VPN events. 
+PUSHOVER_APP_TOKEN=""
+PUSHOVER_USER_KEY=""
+hooks_up() {
+	if [ -n "${PUSHOVER_APP_TOKEN}" -a -n "${PUSHOVER_USER_KEY}" ]; then
+		curl -s \
+			--form-string "token=$PUSHOVER_APP_TOKEN" \
+			--form-string "user=$PUSHOVER_USER_KEY" \
+			--form-string "message=$tun is now connected" \
+			--form-string "sound=gamelan" \
+			https://api.pushover.net/1/messages.json
+	fi
+}
+
+hooks_down() {
+	if [ -n "${PUSHOVER_APP_TOKEN}" -a -n "${PUSHOVER_USER_KEY}" ]; then
+		curl -s \
+			--form-string "token=$PUSHOVER_APP_TOKEN" \
+			--form-string "user=$PUSHOVER_USER_KEY" \
+			--form-string "message=$tun has disconnected" \
+			--form-string "sound=falling" \
+			https://api.pushover.net/1/messages.json
+	fi
+}
