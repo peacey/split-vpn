@@ -1523,15 +1523,14 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
   
   <details>
     <summary>hooks_pre_up, hooks_up, hooks_down, hooks_force_down</summary>
-      These functions can be defined in your vpn.conf file and will be called when the VPN is brought down or up.
-      There are four hooks that you can use:
-    
+      These functions can be defined in your vpn.conf file and will be called when the VPN is brought down or up. For examples on how to use these hooks, please see https://github.com/peacey/split-vpn/blob/main/vpn/vpn.conf.filled.sample.
+
+    There are four hooks that you can use: 
       1. The pre-up hook (hooks_pre_up) is called before the VPN connects if you used the pre-up line in your run script.
       2. The up hook (hooks_up) is called after the VPN connects.
       3. The down hook (hooks_down) is called when the VPN disconnects or exits (but not forced down).
       4. The force-down hook (hooks_force_down) is called when the VPN is forced down using the updown.sh force-down command.
     
-      For examples on how to use these hooks, please see [vpn.conf.filled.sample](https://github.com/peacey/split-vpn/blob/main/vpn/vpn.conf.filled.sample).
     
   </details>
   
