@@ -7,6 +7,11 @@ set -e
 
 ### Functions ###
 
+# Helper function to check if a function is defined
+fn_exists() {
+	[ "`type $1 2>/dev/null`" = "$1 is a function" ]
+}
+
 # Kill the rule watcher (previously running up/down script for the tunnel device).
 kill_rule_watcher() {
 	for p in $(pgrep -f "sh.*$(basename "$0") $tun .*$nickname"); do
@@ -300,10 +305,16 @@ if [ "$state" = "force-down" ]; then
 	delete_all_routes
 	sh ${iptables_script} force-down $tun
 	echo "Forced $tun down. Deleted killswitch and rules."
+	if fn_exists hooks_force_down; then
+		hooks_force_down
+	fi
 elif [ "$state" = "pre-up" ]; then
 	add_blackhole_routes
 	sh ${iptables_script} pre-up $tun
 	run_rule_watcher
+	if fn_exists hooks_pre_up; then
+		hooks_pre_up
+	fi
 elif [ "$state" = "up" ]; then
 	add_blackhole_routes
 	if [ "${VPN_PROVIDER}" = "openvpn" -a "${script_context}" != "restart" ]; then
@@ -315,6 +326,9 @@ elif [ "$state" = "up" ]; then
 	add_gateway_routes
 	sh ${iptables_script} up $tun
 	run_rule_watcher
+	if fn_exists hooks_up; then
+		hooks_up
+	fi
 else
 	if [ "${VPN_PROVIDER}" = "openvpn" -a "${script_context}" != "restart" ]; then
 		delete_vpn_routes
@@ -331,5 +345,8 @@ else
 			delete_all_routes
 		fi
 		sh ${iptables_script} down $tun
+	fi
+	if fn_exists hooks_down; then
+		hooks_down
 	fi
 fi
