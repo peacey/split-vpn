@@ -65,7 +65,7 @@ kill -9 `cat /run/dnsmasq.pid`
 
 # Add listen address to pihole dnsmasq
 cat << EOF > "${PIHOLE_CONFIG}/03-interfaces.conf"
-bind-dynamic
+bind-interfaces
 interface=br${VLAN}pi
 except-interface=lo
 listen-address=${LISTEN_IPS}
