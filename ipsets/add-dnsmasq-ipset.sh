@@ -64,7 +64,8 @@ write_jobs_to_cronfile() {
 	# Combine commands with the same cron_time and write each
 	# one to the cron file.
 	(
-	IFS=$'\n'
+	IFS="
+	"
 	rm -f "$cron_file"
 	for cron_time in $(echo "$jobs_map" | jq -r 'keys[]'); do
 		commands=$(echo "$jobs_map" | 
@@ -82,7 +83,8 @@ write_jobs_to_cronfile() {
 
 write_ipsets_to_config() {
 	(
-	IFS=$'\n'
+	IFS="
+	"
 	# Write ipsets config to config location
 	for config_location in $(echo "$ipsets_map" | jq -r 'keys[]'); do
 		config="${config_location}/ipsets.conf"

@@ -93,7 +93,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
                   --down /mnt/data/split-vpn/vpn/updown.sh \
                   --script-security 2 \
                   --ping-restart 15 \
-                  --mute-replay-warnings &> openvpn.log &
+                  --mute-replay-warnings >openvpn.log 2>&1 &
     ```
     You can modify the command to change `--ping-restart` or other options as needed. The only requirement is that you run updown.sh script as the up/down script and `--route-noexec` to disable OpenVPN from adding routes to the default table instead of our custom one. In some cases, `--redirect-gateway def1` is needed to set the correct VPN gateway.
     
@@ -276,7 +276,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     cd /mnt/data/wireguard
 
     # Start the split-vpn pre-up hook.
-    /mnt/data/split-vpn/vpn/updown.sh wg0 pre-up &> pre-up.log
+    /mnt/data/split-vpn/vpn/updown.sh wg0 pre-up >pre-up.log 2>&1
 
     # Starts a wireguard container that is deleted after it is stopped.
     # All configs stored in /mnt/data/wireguard
@@ -293,7 +293,7 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     # Run the split-vpn up hook if wireguard starts successfully within 5 seconds.
     started=0
     for i in $(seq 1 5); do
-            podman exec -it wireguard test -S "/var/run/wireguard/wg0.sock" &> /dev/null
+            podman exec -it wireguard test -S "/var/run/wireguard/wg0.sock" >/dev/null 2>&1
             if [ $? = 0 ]; then
                     started=1
                     break
@@ -395,8 +395,8 @@ This script is designed to be run on the UDM-Pro and UDM base. It has been teste
     ```sh
     #!/bin/sh
     cd "/mnt/data/split-vpn/openconnect/server1"
-    source ./vpn.conf
-    podman rm -f openconnect-${DEV} &> /dev/null
+    . ./vpn.conf
+    podman rm -f openconnect-${DEV} >/dev/null 2>&1
     /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up
     podman run -id --privileged  --name=openconnect-${DEV} \
         --network host --pid=host \
@@ -557,8 +557,8 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
     #!/bin/sh
     # Load configuration and run openvpn
     cd /mnt/data/split-vpn/openvpn/nordvpn
-    source ./vpn.conf
-    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
+    . ./vpn.conf
+    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up >pre-up.log 2>&1
     nohup openvpn --config nordvpn.ovpn \
                   --route-noexec --redirect-gateway def1 \
                   --up /mnt/data/split-vpn/vpn/updown.sh \
@@ -566,7 +566,7 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
                   --dev-type tun --dev ${DEV} \
                   --script-security 2 \
                   --ping-restart 15 \
-                  --mute-replay-warnings &> openvpn.log &
+                  --mute-replay-warnings >openvpn.log 2>&1 &
     ```
 
     * Remember to modify the `cd` line and the `--config` openvpn option to point to your config. 
@@ -591,9 +591,9 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
   
     # Load configuration and run wireguard
     cd /mnt/data/split-vpn/wireguard/mullvad
-    source ./vpn.conf
-    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
-    wg-quick up ./${DEV}.conf &> wireguard.log
+    . ./vpn.conf
+    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up >pre-up.log 2>&1
+    wg-quick up ./${DEV}.conf >wireguard.log 2>&1
     cat wireguard.log
     ```
 
@@ -640,7 +640,7 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
     
     # Load configuration and bring routes up
     cd /mnt/data/split-vpn/nexthop/mycomputer
-    source ./vpn.conf
+    . ./vpn.conf
     /mnt/data/split-vpn/vpn/updown.sh ${DEV} up mycomputer
     ```
   
@@ -684,8 +684,8 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
 
       # Load configuration for mullvad and run openvpn
       cd /mnt/data/split-vpn/openvpn/mullvad
-      source ./vpn.conf
-      /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
+      . ./vpn.conf
+      /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up >pre-up.log 2>&1
       nohup openvpn --config mullvad.conf \
                     --route-noexec --redirect-gateway def1 \
                     --up /mnt/data/split-vpn/vpn/updown.sh \
@@ -693,12 +693,12 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
                     --script-security 2 \
                     --dev-type tun --dev ${DEV} \
                     --ping-restart 15 \
-                    --mute-replay-warnings &> openvpn.log &
+                    --mute-replay-warnings >openvpn.log 2>&1 &
 
       # Load configuration for nordvpn and run openvpn
       cd /mnt/data/split-vpn/openvpn/nordvpn
-      source ./vpn.conf
-      /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
+      . ./vpn.conf
+      /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up >pre-up.log 2>&1
       nohup openvpn --config nordvpn.ovpn \
                     --route-noexec --redirect-gateway def1 \
                     --up /mnt/data/split-vpn/vpn/updown.sh \
@@ -706,7 +706,7 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
                     --script-security 2 \
                     --dev-type tun --dev ${DEV} \
                     --ping-restart 15 \
-                    --mute-replay-warnings &> openvpn.log &
+                    --mute-replay-warnings >openvpn.log 2>&1 &
     ```
 
 </details>
@@ -726,15 +726,15 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
 
     # Load configuration for mullvad and run wg-quick
     cd /mnt/data/split-vpn/wireguard/mullvad
-    source ./vpn.conf
-    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
-    wg-quick up ./${DEV}.conf &> wireguard.log
+    . ./vpn.conf
+    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up >pre-up.log 2>&1
+    wg-quick up ./${DEV}.conf >wireguard.log 2>&1
 
     # Load configuration for ExpressVPN and run wg-quick
     cd /mnt/data/split-vpn/wireguard/expressvpn
-    source ./vpn.conf
-    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up &> pre-up.log
-    wg-quick up ./${DEV}.conf &> wireguard.log
+    . ./vpn.conf
+    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up >pre-up.log 2>&1
+    wg-quick up ./${DEV}.conf >wireguard.log 2>&1
     ```
 
 </details>
@@ -758,8 +758,8 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
   
       # Load configuration for server1
       cd "/mnt/data/split-vpn/openconnect/server1"
-      source ./vpn.conf
-      podman rm -f openconnect-${DEV} &> /dev/null
+      . ./vpn.conf
+      podman rm -f openconnect-${DEV} >/dev/null 2>&1
       /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up
       podman run -id --privileged  --name=openconnect-${DEV} \
           --network host --pid=host \
@@ -773,8 +773,8 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
   
       # Load configuration for server2
       cd "/mnt/data/split-vpn/openconnect/server2"
-      source ./vpn.conf
-      podman rm -f openconnect-${DEV} &> /dev/null
+      . ./vpn.conf
+      podman rm -f openconnect-${DEV} >/dev/null 2>&1
       /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up
       podman run -id --privileged  --name=openconnect-${DEV} \
           --network host --pid=host \
@@ -801,12 +801,12 @@ You can use [UDM Utilities Boot Script](https://github.com/boostchicken/udm-util
     
     # Load configuration and bring routes up
     cd /mnt/data/split-vpn/nexthop/mycomputer
-    source ./vpn.conf
+    . ./vpn.conf
     /mnt/data/split-vpn/vpn/updown.sh ${DEV} up mycomputer
   
     # Load configuration and bring routes up
     cd /mnt/data/split-vpn/nexthop/myothercomputer
-    source ./vpn.conf
+    . ./vpn.conf
     /mnt/data/split-vpn/vpn/updown.sh ${DEV} up myothercomputer
     ```
 
