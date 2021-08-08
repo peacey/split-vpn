@@ -93,7 +93,7 @@ DEFAULT_ROUTE_FILE_IPV6=/var/run/vpnc/defaultroute_ipv6.${PPID}
 SCRIPTNAME=`basename $0`
 
 # Source current vpn.conf for ROUTE_TABLE
-source ./vpn.conf
+. ./vpn.conf
 
 # Default to a table of 101 if not given
 if [ -z "${ROUTE_TABLE}" ]; then
@@ -270,8 +270,8 @@ reset_ipv6_default_route() {
 	if [ "${DISABLE_DEFAULT_ROUTE}" = "1" ]; then
 		return
 	fi
-	$IPROUTE -6 route del ::/1 dev "$TUNDEV" table ${ROUTE_TABLE} &> /dev/null
-	$IPROUTE -6 route del 8000::/1 dev "$TUNDEV" table ${ROUTE_TABLE} &> /dev/null
+	$IPROUTE -6 route del ::/1 dev "$TUNDEV" table ${ROUTE_TABLE} >/dev/null 2>&1
+	$IPROUTE -6 route del 8000::/1 dev "$TUNDEV" table ${ROUTE_TABLE} >/dev/null 2>&1
 	$IPROUTE route flush cache table ${ROUTE_TABLE} 2>/dev/null
 }
 

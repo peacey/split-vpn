@@ -1,3 +1,3 @@
 #!/bin/sh
-source ./vpn.conf
+. ./vpn.conf
 /etc/split-vpn/vpn/updown.sh ${DEV} down

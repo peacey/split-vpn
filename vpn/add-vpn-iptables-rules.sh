@@ -13,8 +13,8 @@ create_chains() {
 	for entry in ${CHAINS}; do
 		table=$(echo ${entry} | cut -d':' -f1)
 		chain=$(echo ${entry} | cut -d':' -f2)
-		iptables -t ${table} -N ${PREFIX}${chain} &> /dev/null || true
-		ip6tables -t ${table} -N ${PREFIX}${chain} &> /dev/null || true
+		iptables -t ${table} -N ${PREFIX}${chain} >/dev/null 2>&1 || true
+		ip6tables -t ${table} -N ${PREFIX}${chain} >/dev/null 2>&1 || true
 		add_rule both ${table} "${chain} -j ${PREFIX}${chain}" noprefix
 	done
 }
@@ -24,12 +24,12 @@ delete_chains() {
 	for entry in ${CHAINS}; do
 		table=$(echo ${entry} | cut -d':' -f1)
 		chain=$(echo ${entry} | cut -d':' -f2)
-		iptables -t ${table} -D ${chain} -j ${PREFIX}${chain} &> /dev/null || true
-		ip6tables -t ${table} -D ${chain} -j ${PREFIX}${chain} &> /dev/null || true
-		iptables -t ${table} -F ${PREFIX}${chain} &> /dev/null || true
-		ip6tables -t ${table} -F ${PREFIX}${chain} &> /dev/null || true
-		iptables -t ${table} -X ${PREFIX}${chain} &> /dev/null || true
-		ip6tables -t ${table} -X ${PREFIX}${chain} &> /dev/null || true
+		iptables -t ${table} -D ${chain} -j ${PREFIX}${chain} >/dev/null 2>&1 || true
+		ip6tables -t ${table} -D ${chain} -j ${PREFIX}${chain} >/dev/null 2>&1 || true
+		iptables -t ${table} -F ${PREFIX}${chain} >/dev/null 2>&1 || true
+		ip6tables -t ${table} -F ${PREFIX}${chain} >/dev/null 2>&1 || true
+		iptables -t ${table} -X ${PREFIX}${chain} >/dev/null 2>&1 || true
+		ip6tables -t ${table} -X ${PREFIX}${chain} >/dev/null 2>&1 || true
 	done
 }
 
@@ -42,12 +42,12 @@ add_rule() {
 		prefix=${PREFIX}
 	fi
 	if [ "$1" = "IPV4" ]; then
-		iptables -t $2 -C ${prefix}$3 &> /dev/null || iptables -t $2 -A ${prefix}$3
+		iptables -t $2 -C ${prefix}$3 >/dev/null 2>&1 || iptables -t $2 -A ${prefix}$3
 	elif [ "$1" = "IPV6" ]; then
-		ip6tables -t $2 -C ${prefix}$3 &> /dev/null || ip6tables -t $2 -A ${prefix}$3
+		ip6tables -t $2 -C ${prefix}$3 >/dev/null 2>&1 || ip6tables -t $2 -A ${prefix}$3
 	else
-		iptables -t $2 -C ${prefix}$3 &> /dev/null || iptables -t $2 -A ${prefix}$3
-		ip6tables -t $2 -C ${prefix}$3 &> /dev/null || ip6tables -t $2 -A ${prefix}$3
+		iptables -t $2 -C ${prefix}$3 >/dev/null 2>&1 || iptables -t $2 -A ${prefix}$3
+		ip6tables -t $2 -C ${prefix}$3 >/dev/null 2>&1 || ip6tables -t $2 -A ${prefix}$3
 	fi
 }
 
@@ -148,7 +148,8 @@ add_iptables_rules() {
 	# Force traffic through VPN for each ipset
 	add_ipset_rule force "${FORCED_IPSETS}"
 
-	(IFS=$'\n'
+	(IFS="
+	"
 	for rule in ${CUSTOM_FORCED_RULES_IPV4}; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
@@ -229,7 +230,8 @@ add_iptables_rules() {
 		add_rule IPV6 mangle "PREROUTING ! -i ${dev} -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 	done
 
-	(IFS=$'\n'
+	(IFS="
+	"
 	for rule in ${CUSTOM_EXEMPT_RULES_IPV4}; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
@@ -323,8 +325,8 @@ add_iptables_rules() {
 # Add the iptables kill switch
 add_killswitch() {
 	# Create the custom chain
-	iptables -t filter -N ${PREFIX}KILLSWITCH &> /dev/null || true
-	ip6tables -t filter -N ${PREFIX}KILLSWITCH &> /dev/null || true
+	iptables -t filter -N ${PREFIX}KILLSWITCH >/dev/null 2>&1 || true
+	ip6tables -t filter -N ${PREFIX}KILLSWITCH >/dev/null 2>&1 || true
 	add_rule both filter "FORWARD -j ${PREFIX}KILLSWITCH" noprefix
 
 	# Reject all VPN traffic (marked) that doesn't go out of the VPN interface
@@ -333,14 +335,14 @@ add_killswitch() {
 
 # Delete the iptables kill switch
 delete_killswitch() {
-	iptables -t filter -D OUTPUT -j ${PREFIX}KILLSWITCH &> /dev/null || true
-	ip6tables -t filter -D OUTPUT -j ${PREFIX}KILLSWITCH &> /dev/null || true
-	iptables -t filter -D FORWARD -j ${PREFIX}KILLSWITCH &> /dev/null || true
-	ip6tables -t filter -D FORWARD -j ${PREFIX}KILLSWITCH &> /dev/null || true
-	iptables -t filter -F ${PREFIX}KILLSWITCH &> /dev/null || true
-	ip6tables -t filter -F ${PREFIX}KILLSWITCH &> /dev/null || true
-	iptables -t filter -X ${PREFIX}KILLSWITCH &> /dev/null || true
-	ip6tables -t filter -X ${PREFIX}KILLSWITCH &> /dev/null || true
+	iptables -t filter -D OUTPUT -j ${PREFIX}KILLSWITCH >/dev/null 2>&1 || true
+	ip6tables -t filter -D OUTPUT -j ${PREFIX}KILLSWITCH >/dev/null 2>&1 || true
+	iptables -t filter -D FORWARD -j ${PREFIX}KILLSWITCH >/dev/null 2>&1 || true
+	ip6tables -t filter -D FORWARD -j ${PREFIX}KILLSWITCH >/dev/null 2>&1 || true
+	iptables -t filter -F ${PREFIX}KILLSWITCH >/dev/null 2>&1 || true
+	ip6tables -t filter -F ${PREFIX}KILLSWITCH >/dev/null 2>&1 || true
+	iptables -t filter -X ${PREFIX}KILLSWITCH >/dev/null 2>&1 || true
+	ip6tables -t filter -X ${PREFIX}KILLSWITCH >/dev/null 2>&1 || true
 }
 
 delete_dns_routes() {
@@ -354,7 +356,7 @@ delete_dns_routes() {
 
 # If configuration variables are not present, source the config file from the PWD.
 if [ -z "${MARK}" ]; then
-	source ./vpn.conf
+	. ./vpn.conf
 fi
 
 # Default to tun0 if no device name was passed to this script
@@ -387,5 +389,5 @@ fi
 
 # Flush conntrack if forcing any local interfaces
 if [ -n "$FORCED_LOCAL_INTERFACE" ]; then
-	conntrack -F &> /dev/null
+	conntrack -F >/dev/null 2>&1
 fi

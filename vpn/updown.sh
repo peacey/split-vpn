@@ -9,7 +9,8 @@ set -e
 
 # Helper function to check if a function is defined
 fn_exists() {
-	[ "`type $1 2>/dev/null`" = "$1 is a function" ]
+        type $1 2>/dev/null | head -n1 | grep -q function
+        [ $? = 0 ]
 }
 
 # Kill the rule watcher (previously running up/down script for the tunnel device).
@@ -21,8 +22,8 @@ kill_rule_watcher() {
 	done
 	# Only delete the rules if not in pre-up or up hook
 	if [ "$state" != "pre-up" -a "$state" != "up" ]; then
-		ip rule del $ip_rule &> /dev/null || true
-		ip -6 rule del $ip_rule &> /dev/null || true
+		ip rule del $ip_rule >/dev/null 2>&1 || true
+		ip -6 rule del $ip_rule >/dev/null 2>&1 || true
 	fi
 }
 
@@ -31,13 +32,13 @@ kill_rule_watcher() {
 run_rule_watcher() {
 	kill_rule_watcher
 	(while :; do
-		ip rule show fwmark ${MARK} | grep ${MARK} &> /dev/null || 
+		ip rule show fwmark ${MARK} | grep ${MARK} >/dev/null 2>&1 || 
 			(ip rule add $ip_rule && echo "[$(date)] Readded IPv4 rule.")
-		ip -6 rule show fwmark ${MARK} | grep ${MARK} &> /dev/null || 
+		ip -6 rule show fwmark ${MARK} | grep ${MARK} >/dev/null 2>&1 || 
 			(ip -6 rule add $ip_rule && echo "[$(date)] Readded IPv6 rule.")
 		if [ "${REMOVE_STARTUP_BLACKHOLES}" = 1 ]; then
 			for route in ${startup_blackholes}; do
-				ip route del blackhole "$route" &> /dev/null &&
+				ip route del blackhole "$route" >/dev/null 2>&1 &&
 					echo "[$(date)] Removed blackhole ${route}."
 			done
 		fi
@@ -212,10 +213,10 @@ delete_vpn_routes() {
 # Delete the gateway routes
 delete_gateway_routes() {
 	if [ -n "${VPN_ENDPOINT_IPV4}" ]; then
-		ip route del "${VPN_ENDPOINT_IPV4}" table ${ROUTE_TABLE} &> /dev/null || true
+		ip route del "${VPN_ENDPOINT_IPV4}" table ${ROUTE_TABLE} >/dev/null 2>&1 || true
 	fi
 	if [ -n "${VPN_ENDPOINT_IPV6}" ]; then
-		ip -6 route del "${VPN_ENDPOINT_IPV6}" table ${ROUTE_TABLE} &> /dev/null || true
+		ip -6 route del "${VPN_ENDPOINT_IPV6}" table ${ROUTE_TABLE} >/dev/null 2>&1 || true
 	fi
 }
 
@@ -240,7 +241,7 @@ delete_all_routes() {
 CONFIG_FILE=""
 if [ -z "${MARK}" ]; then
 	CONFIG_FILE="${PWD}/vpn.conf"
-	source ./vpn.conf
+	. ./vpn.conf
 fi
 
 # If no provider was given, assume openvpn for backwards compatibility.
