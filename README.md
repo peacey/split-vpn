@@ -864,6 +864,17 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
   * **For OpenConnect:** Yes, as long as you used the `--restart on-failure` option to podman. This ensures that if there is a network disconnect or unexpected exit for any reason, the OpenConnect client will restart and try to re-configure itself until it connects again. The killswitch will still be active during the restart to block non-VPN traffic as long as you set `REMOVE_KILLSWITCH_ON_EXIT=0` in the config.
     
 </details>
+  
+<details>  
+  <summary>Does this script work with Layer 3 switches?</summary>
+
+  * Yes, but not all options are compatible on networks with L3 switches. Specifically, any option matching on a client's MAC address or interface will not work for networks where the L3 switch is assiged as the gateway. This is because when a L3 switch, rather that the UDM, is configured as the Gateway for a Network, the switch acts as a router and overrides the MAC address of packets sent to the UDMP. This means the packets that arrive on the UDMP have the switch's MAC address and come through the special inter-VLAN interface instead of the regular brX VLAN interfaces. 
+  
+  * Instead, try to match on the IP of the client instead of the MAC or interface if you are using a L3 switch as a gateway. 
+  
+  * Layer 3 switches acting in Layer 2 (not configured as the gateway) will still work fine with options that match on MAC or interface, since they are not acting as a router.
+  
+</details>
 
 <details>
   <summary>What does this really do to my UDMP?</summary>
