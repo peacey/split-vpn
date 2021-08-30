@@ -71,7 +71,7 @@ VPN_ENDPOINT_IPV6=""
 # "203" for U-LTE.
 # Default is "auto" which works with WAN failover and automatically changes the endpoint
 # via gateway route when the WAN or gateway routes changes.
-# Set to "disabled" for nexthop option to connect to a LAN computer.
+# Set to "disabled" if you are using the nexthop option to connect to a VPN on your LAN.
 GATEWAY_TABLE="auto"
 
 # Options for custom table and chains.

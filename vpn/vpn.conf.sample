@@ -9,6 +9,12 @@ FORCED_SOURCE_IPV4=""
 FORCED_SOURCE_IPV6=""
 FORCED_SOURCE_MAC=""
 
+# Format: [tcp/udp/both]-[IP/MAC Source]-[port1,port2:port3,port4,...]
+# Maximum 15 ports per entry.
+FORCED_SOURCE_IPV4_PORT=""
+FORCED_SOURCE_IPV6_PORT=""
+FORCED_SOURCE_MAC_PORT=""
+
 # Force these destinations through the VPN. 
 # These destinations will be forced regardless of source.
 # Format: [IP/nn]
@@ -43,15 +49,16 @@ EXEMPT_DESTINATIONS_IPV6=""
 
 # Force/exempt these IP sets
 # IP sets need to be created before this script is run or the script will error.
-# IP sets can be updated externally and will be matched dynamically. 
-# Each IP set entry consists of the IP set name and whether to match on source 
+# IP sets can be updated externally and will be matched dynamically.
+# Each IP set entry consists of the IP set name and whether to match on source
 # or destination. src/dst needs to be specified for each IP set field.
 #
-# You can also use this option to allow NAT hairpin to work while on the VPN
-# by adding the Unifi IP sets for the interface to the EXEMPT_IPSETS variable.
-# For example, for eth8 WAN, IP sets are UBIOS_ADDRv4_eth8 and UBIOS_ADDRv6_eth8.
-# For prefix delegation, IPv6 WAN addresses are stored in the bridge interfaces,
-# not eth interfaces.
+# Enable NAT hairpin by exempting UBIOS_ADDRv4_ethX:dst for IPv4 or
+# UBIOS_ADDRv6_ethX:dst for IPv6 (where X = 8 for RJ45, or 9 for SFP+ WAN).
+# For IPv6 prefix delegation, exempt UBIOS_ADDRv6_brX, where X = VLAN number (0 = LAN).
+#
+# To allow communication with your VLAN subnets without hardcoding the subnets,
+# exempt the UBIOS_NETv4_brX:dst ipset for IPv4 or UBIOS_NETv6_brX:dst for IPv6.
 #
 # Format: [IPSet Name]:[src/dst,src/dst,...]
 FORCED_IPSETS=""
@@ -122,12 +129,18 @@ VPN_ENDPOINT_IPV4=""
 VPN_ENDPOINT_IPV6=""
 
 # Set this to the route table that contains the gateway route, "auto", or "disabled".
-# The Ubiquiti route table are "201" if you're using Ethernet, "202" for SFP+, and
+# The Ubiquiti route table is "201" if you're using Ethernet, "202" for SFP+, and
 # "203" for U-LTE.
 # Default is "auto" which works with WAN failover and automatically changes the endpoint
 # via gateway route when the WAN or gateway routes changes.
-# Set to "disabled" for nexthop option to connect to a LAN computer.
+# Set to "disabled" if you are using the nexthop option to connect to a VPN on your LAN.
 GATEWAY_TABLE="auto"
+
+# Set the MSS clamping on packets going out the VPN tunnel. Usually, it is not needed to
+# set this manually, but some VPN connections stall if the MSS clamping is not set correctly.
+# Typical values range from 1240 to 1460, but it could be lower.
+MSS_CLAMPING_IPV4=""
+MSS_CLAMPING_IPV6=""
 
 # Set this to the timer to use for the rule watcher (in seconds).
 # The script will wake up every N seconds to re-add rules if they're deleted by

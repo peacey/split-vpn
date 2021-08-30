@@ -137,6 +137,43 @@ add_iptables_rules() {
 		add_rule both mangle "PREROUTING -m mac --mac-source ${mac} -j MARK --set-xmark ${MARK}"
 	done
 
+	# Force source IP:PORT for IPv4 and IPv6
+	for entry in ${FORCED_SOURCE_IPV4_PORT}; do
+		proto=$(echo "$entry" | cut -d'-' -f1)
+		source_ip=$(echo "$entry" | cut -d'-' -f2)
+		sports=$(echo "$entry" | cut -d'-' -f3)
+		if [ "$proto" = "both" ]; then
+			add_rule IPV4 mangle "PREROUTING -p tcp -s ${source_ip} -m multiport --sports ${sports} -j MARK --set-xmark ${MARK}"
+			add_rule IPV4 mangle "PREROUTING -p udp -s ${source_ip} -m multiport --sports ${sports} -j MARK --set-xmark ${MARK}"
+		else
+			add_rule IPV4 mangle "PREROUTING -p ${proto} -s ${source_ip} -m multiport --sports ${sports} -j MARK --set-xmark ${MARK}"
+		fi
+	done
+	for entry in ${FORCED_SOURCE_IPV6_PORT}; do
+		proto=$(echo "$entry" | cut -d'-' -f1)
+		source_ip=$(echo "$entry" | cut -d'-' -f2)
+		sports=$(echo "$entry" | cut -d'-' -f3)
+		if [ "$proto" = "both" ]; then
+			add_rule IPV6 mangle "PREROUTING -p tcp -s ${source_ip} -m multiport --sports ${sports} -j MARK --set-xmark ${MARK}"
+			add_rule IPV6 mangle "PREROUTING -p udp -s ${source_ip} -m multiport --sports ${sports} -j MARK --set-xmark ${MARK}"
+		else
+			add_rule IPV6 mangle "PREROUTING -p ${proto} -s ${source_ip} -m multiport --sports ${sports} -j MARK --set-xmark ${MARK}"
+		fi
+	done
+
+	# Force source MAC:PORT
+	for entry in ${FORCED_SOURCE_MAC_PORT}; do
+		proto=$(echo "$entry" | cut -d'-' -f1)
+		source_mac=$(echo "$entry" | cut -d'-' -f2)
+		sports=$(echo "$entry" | cut -d'-' -f3)
+		if [ "$proto" = "both" ]; then
+			add_rule both mangle "PREROUTING -p tcp -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -j MARK --set-xmark ${MARK}"
+			add_rule both mangle "PREROUTING -p udp -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -j MARK --set-xmark ${MARK}"
+		else
+			add_rule both mangle "PREROUTING -p ${proto} -m mac --mac-source ${source_mac} -m multiport --sports ${sports} -j MARK --set-xmark ${MARK}"
+		fi
+	done
+
 	# Force traffic through VPN for each destination
 	for ip in ${FORCED_DESTINATIONS_IPV4}; do
 		add_rule IPV4 mangle "PREROUTING -d ${ip} -j MARK --set-xmark ${MARK}"
@@ -245,6 +282,14 @@ add_iptables_rules() {
 		fi
 	done
 	)
+
+	# Set MSS clamping for packets leaving the VPN tunnel
+	if [ -n "${MSS_CLAMPING_IPV4}" ]; then
+		add_rule IPV4 mangle "FORWARD -o ${dev} -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss ${MSS_CLAMPING_IPV4}"
+	fi
+	if [ -n "${MSS_CLAMPING_IPV6}" ]; then
+		add_rule IPV6 mangle "FORWARD -o ${dev} -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss ${MSS_CLAMPING_IPV6}"
+	fi
 
 	enable_masq_ipv4=1
 	enable_masq_ipv6=1
