@@ -591,6 +591,17 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
 	      -e TZ="$(cat /etc/timezone)" \
 	      -v "/etc/timezone:/etc/timezone" \
 	      peacey/udm-strongswan
+	
+    # Make sure VPN disconnects before reboot
+    initfile="/etc/init.d/S99999stopvpn"
+    if [ ! -f "$initfile" ]; then
+        echo "#!/bin/sh" > "$initfile"
+        chmod +x "$initfile"
+    fi
+    grep -q "strongswan-${DEV};" "$initfile"
+    if [ $? -ne 0 ]; then
+        echo 'if [ "$1" = "stop" ]; then podman rm -f strongswan-'"${DEV}"'; fi' >> "$initfile"
+    fi
     ```
     
     * Make sure the 2nd line points to the correct directory with your vpn configuration files.
