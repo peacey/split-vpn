@@ -570,6 +570,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
 
     * The options `DNS_IPV4_IP` and `DNS_IPV6_IP` are commented out if you want to force VPN-forced clients to use the DNS provided by the VPN server, or set them to set to "" (empty) to disable DNS forcing. 
     * The option `VPN_PROVIDER` is set to "external". This is required for the script to work with StrongSwan.
+    * Comment out the options `VPN_ENDPOINT_IPV4` and `VPN_ENDPOINT_IPV6` (i.e. add a `#` in front of them).
     * The tunnel device option `DEV` is set to a unique name for each configuration, such as vti256. Ubiquiti uses vti64 and up so do not use anything close to that.
   
 7. In the current folder, create a run script that will run the the StrongSwan container called `run-vpn.sh`, and fill it with the following code:
@@ -614,7 +615,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
 9. The first time the script runs, it will download the StrongSwan docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
     
     * If the script ran successfully, check that the VPN tunnel device was created by running `ip addr show dev vti256`, and check that you can ping through the tunnel by running `ping -I vti256 1.1.1.1` (for example).
-    * If you're having problems, check the log by running `podman logs strongswan-vti256` (replace vti256 with your DEV if different). Also check `strongswan-up.log` in the current folder.
+    * If you're having problems, check the log by running `podman logs strongswan-vti256` (replace vti256 with your DEV if different). Also check `splitvpn-up.log` in the current folder.
     * If you are having intermittent connection issues or websites stalling, you might need to adjust your MSS clamping using the `MSS_CLAMPING_IPV4` or `MSS_CLAMPING_IPV6` options in your `vpn.conf` file.
   
 10. If the connection works, check each client to make sure they are on the VPN by doing the following.
