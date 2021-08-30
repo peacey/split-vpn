@@ -19,7 +19,7 @@ This is a helper script for multiple VPN clients on the UDM that creates a split
 * Can be used with multiple openvpn instances with separate configurations for each. This allows you to force different clients through different VPN servers. 
 * IPv6 support for all options.
 * Run on boot support via UDM-Utilities boot script.
-* Supports OpenVPN, WireGuard kernel module, wireguard-go docker container, OpenConnect docker container, and external VPN clients on your network (nexthop).
+* Supports OpenVPN, WireGuard kernel module, wireguard-go docker container, OpenConnect docker container (AnyConnect), StrongSwan docker container (IKEv2 and IPSec), and external VPN clients on your network (nexthop).
 
 ## Compatibility
 
@@ -439,7 +439,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     echo "mypassword" > password.txt
     ```
   
-4. Edit the `vpn.conf` file in this folder with your desired settings. See the explanation of each setting below. Make sure that:
+4. Edit the `vpn.conf` file in this folder with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
 
     * The options `DNS_IPV4_IP` and `DNS_IPV6_IP` are set to "DHCP" if you want to force VPN-forced clients to use the DNS provided by the VPN server. 
     * The option `VPN_PROVIDER` is set to "openconnect". This is required for the script to work with OpenConnect.
@@ -515,6 +515,127 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
 11. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 
 12. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+  
+</details>
+    
+<details>
+  <summary>Click here to see the instructions for StrongSwan (IKEv2, IPSec).</summary>
+  
+  **NOTE:** This requires podman which comes pre-installed on the non-SE UDMs. For the UDM SE, you need to install podman first (instructions not included).
+
+1. SSH into the UDM/P (assuming it's on 192.168.1.254).
+
+    ```sh
+    ssh root@192.168.1.254
+    ```
+  
+2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
+
+    ```sh
+    cd /mnt/data
+    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
+    cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
+    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
+    ```
+    
+3. Create a directory for your StrongSwan configuration files under `/mnt/data/split-vpn/strongswan`, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`. In this example, we are making a folder for PureVPN.
+  
+    ```sh
+    mkdir -p /mnt/data/split-vpn/strongswan/purevpn
+    cd /mnt/data/split-vpn/strongswan/purevpn
+    cp /mnt/data/split-vpn/vpn/vpn.conf.sample vpn.conf
+    ```
+  
+4. Copy your strongswan configuration that defines your VPN connection and any certificates needed to this folder. In this example, we are downloading the files needed for PureVPN, but the configuration will be different for other VPN providers.
+  
+    ```sh
+    curl -Lo purevpn.conf https://raw.githubusercontent.com/peacey/split-vpn/main/examples/strongswan/purevpn/purevpn.conf
+    curl -Lo USERTrustRSACertificationAuthority.crt https://raw.githubusercontent.com/peacey/split-vpn/main/examples/strongswan/purevpn/USERTrustRSACertificationAuthority.crt
+    ```
+  
+5. Edit the purevpn.conf strongswan configuration with vim:
+  
+    ```sh
+    vim purevpn.conf
+    ```
+  
+    * Tip: Press `i` to enter insert mode, edit the file and make your changes, press `ESC` to exit insert mode, then type `:wq` to save and exit.
+    * Change `remote_addrs` variable to your desired PureVPN IKEv2 server.
+    * Make sure the folders referenced in `updown` variable are the correct folders. Your configuration needs the updown variable to call the split-vpn script, or the VPN rules will not be installed. 
+    * Change the 4 instances of `purevpn0dXXXXXXXX` in the file to your own PureVPN username. Make sure to change all 4.
+    * Change `secret = "mypassword"` at the bottom of the file to your own password. The password is found in the PureVPN account page, this is not the same password that you use to login to PureVPN's web portal. 
+  
+6. Edit the `vpn.conf` file in this folder with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure to check:
+
+    * The options `DNS_IPV4_IP` and `DNS_IPV6_IP` are commented out if you want to force VPN-forced clients to use the DNS provided by the VPN server, or set them to set to "" (empty) to disable DNS forcing. 
+    * The option `VPN_PROVIDER` is set to "external". This is required for the script to work with StrongSwan.
+    * The tunnel device option `DEV` is set to a unique name for each configuration, such as vti256. Ubiquiti uses vti64 and up so do not use anything close to that.
+  
+7. In the current folder, create a run script that will run the the StrongSwan container called `run-vpn.sh`, and fill it with the following code:
+  
+    * Tip: Run the vim text editor using `vim run-vpn.sh`, press `i` to enter insert mode, right click on vim -> paste, press `ESC` to exit insert mode, type `:wq` to save and exit.
+  
+    ```sh
+    #!/bin/sh
+    cd "/mnt/data/split-vpn/strongswan/purevpn"
+    . ./vpn.conf
+ 
+    podman rm -f strongswan-${DEV} &> /dev/null
+    #/mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up
+    podman run -d --name strongswan-${DEV} --network host --privileged \
+	      -v "./purevpn.conf:/etc/swanctl/conf.d/purevpn.conf" \
+	      -v "${PWD}:${PWD}" \
+	      -v "/mnt/data/split-vpn/vpn:/mnt/data/split-vpn/vpn" \
+	      -e TZ="$(cat /etc/timezone)" \
+	      -v "/etc/timezone:/etc/timezone" \
+	      peacey/udm-strongswan
+    ```
+    
+    * Make sure the 2nd line points to the correct directory with your vpn configuration files.
+    * Replace the two instances of `purevpn.conf` with your configuration name if different.
+    * **Optional**: Uncomment the pre-up line by removing the `# ` at the beginning of the line if you want to block Internet access for forced clients while the VPN is in the process of connecting. Keeping it commented out doesn't enable the iptables kill switch until after the VPN connects.
+
+  
+8. Give the script executable permissions and run it.
+  
+  ```sh
+  chmod +x run-vpn.sh
+  ./run-vpn.sh
+  ```
+  
+  * If you need to bring down the tunnel to restore Internet access to forced clients, run:
+    
+    ```sh
+    podman rm -f strongswan-vti256
+    ````
+    * Replace vti256 in the last line with the DEV you configured in vpn.conf. 
+  
+9. The first time the script runs, it will download the StrongSwan docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
+    
+    * If the script ran successfully, check that the VPN tunnel device was created by running `ip addr show dev vti256`, and check that you can ping through the tunnel by running `ping -I vti256 1.1.1.1` (for example).
+    * If you're having problems, check the log by running `podman logs strongswan-vti256` (replace vti256 with your DEV if different). Also check `strongswan-up.log` in the current folder.
+    * If you are having intermittent connection issues or websites stalling, you might need to adjust your MSS clamping using the `MSS_CLAMPING_IPV4` or `MSS_CLAMPING_IPV6` options in your `vpn.conf` file.
+  
+10. If the connection works, check each client to make sure they are on the VPN by doing the following.
+
+    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+    
+      ```sh
+      curl -4 ifconfig.co
+      curl -6 ifconfig.co
+      ```
+        
+      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
+
+    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
+    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
+    
+11. If you want to continue blocking Internet access to forced clients after the openconnect client is shut down, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
+    
+12. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+
+13. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
   
 </details>
 
@@ -621,7 +742,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
   * For the non-SE UDM base or Pro, set-up UDM Utilities Boot Script by following the instructions [here](https://github.com/boostchicken/udm-utilities/blob/master/on-boot-script/README.md) before following the instructions below.
   * For the UDM-Pro-SE, run the following commands to install a boot service for the VPN script.
     ```sh
-    curl -o /etc/systemd/system/run-vpn.service https://raw.githubusercontent.com/peacey/split-vpn/main/systemd/run-vpn.service
+    curl -o /etc/systemd/system/run-vpn.service https://raw.githubusercontent.com/peacey/split-vpn/main/examples/systemd/run-vpn.service
     systemctl daemon-reload
     systemctl enable run-vpn
     ```
