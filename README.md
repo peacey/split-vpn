@@ -3,7 +3,7 @@ A split tunnel VPN script for the UDM with policy based routing.
 
 ## What is this?
 
-This is a helper script for multiple VPN clients on the UDM that creates a split tunnel for the VPN connection, and forces configured clients through the VPN instead of the default WAN. This is accomplished by marking every packet of the forced clients with an iptables firewall mark (fwmark), adding the VPN routes to a custom routing table, and using a policy-based routing rule to direct the marked traffic to the custom table. This script works with OpenVPN, WireGuard, OpenConnect, or an external nexthop VPN client on your network. 
+This is a helper script for multiple VPN clients on the UDM that creates a split tunnel for the VPN connection, and forces configured clients through the VPN instead of the default WAN. This is accomplished by marking every packet of the forced clients with an iptables firewall mark (fwmark), adding the VPN routes to a custom routing table, and using a policy-based routing rule to direct the marked traffic to the custom table. This script works with OpenVPN, WireGuard, OpenConnect, StrongSwan, or an external nexthop VPN client on your network. 
 
 ## Features
 
@@ -564,7 +564,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     * Change `remote_addrs` variable to your desired PureVPN IKEv2 server.
     * Make sure the folders referenced in `updown` variable are the correct folders. Your configuration needs the updown variable to call the split-vpn script, or the VPN rules will not be installed. 
     * Change the 4 instances of `purevpn0dXXXXXXXX` in the file to your own PureVPN username. Make sure to change all 4.
-    * Change `secret = "mypassword"` at the bottom of the file to your own password. The password is found in the PureVPN account page, this is not the same password that you use to login to PureVPN's web portal. 
+    * Change `secret = "mysecret"` at the bottom of the file to your own password. The password is found in the PureVPN account page, this is not the same password that you use to login to PureVPN's web portal. 
   
 6. Edit the `vpn.conf` file in this folder with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure to check:
 
@@ -611,17 +611,17 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
   
 8. Give the script executable permissions and run it.
   
-  ```sh
-  chmod +x run-vpn.sh
-  ./run-vpn.sh
-  ```
+      ```sh
+      chmod +x run-vpn.sh
+      ./run-vpn.sh
+      ```
   
-  * If you need to bring down the tunnel to restore Internet access to forced clients, run:
+      * If you need to bring down the tunnel to restore Internet access to forced clients, run:
     
-    ```sh
-    podman rm -f strongswan-vti256
-    ````
-    * Replace vti256 in the last line with the DEV you configured in vpn.conf. 
+        ```sh
+        podman rm -f strongswan-vti256
+        ```
+        * Replace vti256 in the last line with the DEV you configured in vpn.conf. 
   
 9. The first time the script runs, it will download the StrongSwan docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
     
@@ -643,7 +643,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
     * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
     
-11. If you want to continue blocking Internet access to forced clients after the openconnect client is shut down, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
+11. If you want to continue blocking Internet access to forced clients after the strongswan client is shut down, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
     
 12. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 
@@ -893,6 +893,12 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
             ```sh
             kill -TERM $(pgrep -f "openconnect.*tun0")
             ```
+	
+    * **StrongSwan:** Stop and delete the strongswan container.
+	
+      ```sh
+      podman rm -f strongswan-vti256
+      ```
   
     * **Nexthop:** Change to the directory of your vpn.conf configuration and run the split-vpn down command. Make sure to use the correct nickname and interface.
   
@@ -910,7 +916,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
   
     * If you don't want to delete the kill switch and leak your real IP, re-run the run script or command to bring the VPN back up again.
 
-    * If you want to delete the kill switch so your forced clients can access your normal Internet again, change to the directory with the vpn.conf file and run the following command (replace tun0 with the device you defined in the config file). This command applies to all VPN types (OpenVPN, WireGuard, OpenConnect, Nexthop).
+    * If you want to delete the kill switch so your forced clients can access your normal Internet again, change to the directory with the vpn.conf file and run the following command (replace tun0 with the device you defined in the config file). This command applies to all VPN types.
     
         ```sh
         cd /mnt/data/split-vpn/openvpn/nordvpn
@@ -995,6 +1001,8 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
   * **For WireGuard:** The WireGuard protocol is practically stateless, so IP changes will not affect the connection. 
   
   * **For OpenConnect:** Yes, as long as you used the `--restart on-failure` option to podman. This ensures that if there is a network disconnect or unexpected exit for any reason, the OpenConnect client will restart and try to re-configure itself until it connects again. The killswitch will still be active during the restart to block non-VPN traffic as long as you set `REMOVE_KILLSWITCH_ON_EXIT=0` in the config.
+	
+  * **For StrongSwan:** Yes, the StrongSwan daemon will automatically reconnect when the connection is working again. 
     
 </details>
   
@@ -1058,6 +1066,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
     * For OpenVPN, first check the openvpn.log file in the VPN server's directory for any errors. 
     * For WireGuard, check wireguard.log after you run your run script or check the output of wg-quick up. For wireguard-go, check the output when you run your run script. Make sure you received a handshake in WireGuard or the connection will not work. If you did not receive a handshake, double check your configuration's Private and Public key and other variables.
     * For OpenConnect, check the openconnect.log file in the VPN server's directory for any errors.
+	* For StrongSwan, check the splitvpn-up.log in the VPN server's directory, and check `podman logs strongswan-vti256`.
   * Check that the iptables rules, policy-based routes, and custom table routes agree with your configuration. See the previous question for how to look this up.
   * If you want to see which line the scripts failed on, open the `updown.sh` and `add-vpn-iptables-rules.sh` scripts and replace the `set -e` line at the top with `set -xe` then rerun the VPN. The `-x` flag tells the shell to print every line before it executes it. 
   * Post a bug report if you encounter any reproducible issues. 
@@ -1232,14 +1241,15 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
   <details>
     <summary>EXEMPT_IPSETS</summary>
       Exempt these IP sets from the VPN. IP sets need to be created before this script is run or the script will error. IP sets can be updated externally and will be matched dynamically. Each IP set entry consists of the IP set name and whether to match on source or destination for each field in the IP set. 
-      You can also use this option to allow NAT hairpin to work while on the VPN by adding the Unifi-provided IP sets for the interface to this variable. For example, for eth8 WAN, IP sets are UBIOS_ADDRv4_eth8 and UBIOS_ADDRv6_eth8. Note that for IPv6 prefix delegation, IPv6 WAN addresses are stored on the bridge interfaces, not eth interfaces. 
+      Enable NAT hairpin by exempting UBIOS_ADDRv4_ethX:dst for IPv4 or UBIOS_ADDRv6_ethX:dst for IPv6 (where X = 8 for RJ45, or 9 for SFP+ WAN). For IPv6 prefix delegation, exempt UBIOS_ADDRv6_brX, where X = VLAN number (0 = LAN).
+	  To allow communication with your VLAN subnets without hardcoding the subnets, exempt the UBIOS_NETv4_brX:dst ipset for IPv4 or UBIOS_NETv6_brX:dst for IPv6.
     
       Note: These IP sets will be exempt for every VPN-forced client. If you want to exempt different IP sets for different clients, use `CUSTOM_EXEMPT_RULES_IPV4` and  `CUSTOM_EXEMPT_RULES_IPV6` below.
     
       src/dst needs to be specified for each IP set field.
       Format: Format: [IPSet Name]:[src/dst,src/dst,...]
       Example: EXEMPT_IPSETS="VPN_EXEMPT:dst IPSET_NAME:src,dst"
-               EXEMPT_IPSETS="UBIOS_ADDRv4_eth8:dst UBIOS_ADDRv6_br0:dst"
+               EXEMPT_IPSETS="UBIOS_ADDRv4_eth8:dst UBIOS_ADDRv6_br0:dst UBIOS_NETv4_br0:dst UBIOS_NETv4_br5:dst"
 
   </details>
   
@@ -1421,14 +1431,14 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
     <summary>VPN_PROVIDER</summary>
      The VPN provider you are using with this script.
     
-      Format: "openvpn" for OpenVPN (default), "openconnect" for OpenConnect, "external" for wireguard, or "nexthop" for an external VPN client connected to another computer on your network. 
+      Format: "openvpn" for OpenVPN (default), "openconnect" for OpenConnect, "external" for WireGuard or StrongSwan, or "nexthop" for an external VPN client connected to another computer on your network. 
       Example: VPN_PROVIDER="openvpn"
 
   </details>
     
   <details>
     <summary>VPN_ENDPOINT_IPV4</summary>
-    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv4 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN and OpenConnect automatically passes the VPN endpoint IP to the script and will override this value. This option must be defined if using nexthop VPN_PROVIDER.
+    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv4 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN and OpenConnect automatically passes the VPN endpoint IP to the script and will override this value. This option must be defined if using nexthop VPN_PROVIDER. For StrongSwan, this option must be commented out for auto-assignment from StrongSwan.
     
       Format: [IP]
       Example: VPN_ENDPOINT_IPV4="2.2.2.2"
@@ -1437,7 +1447,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
   
   <details>
     <summary>VPN_ENDPOINT_IPV6</summary>
-    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv6 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN and OpenConnect automatically passes the VPN endpoint IP to the script and will override this value. This option must be defined if using nexthop VPN_PROVIDER.
+    If using "external" for VPN_PROVIDER, set this to the VPN endpoint's IPv6 address so that the gateway route can be automatically added for the VPN endpoint. OpenVPN and OpenConnect automatically passes the VPN endpoint IP to the script and will override this value. This option must be defined if using nexthop VPN_PROVIDER. For StrongSwan, this option must be commented out for auto-assignment from StrongSwan.
     
       Format: [IP]
       Example: VPN_ENDPOINT_IPV6="2606:43:ee::23"
