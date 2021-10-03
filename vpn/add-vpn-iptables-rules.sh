@@ -259,6 +259,14 @@ add_iptables_rules() {
 	# Exempt ipsets from VPN
 	add_ipset_rule exempt "${EXEMPT_IPSETS}"
 
+	# Exempt the local VPN IPs
+	for addr in $(ip a show dev ${dev} 2>/dev/null | sed -En s/".*inet ([^ \/]+)(\/[0-9]+)? .*"/"\1"/p); do
+		add_rule IPV4 mangle "PREROUTING -d ${addr} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+	done
+	for addr in $(ip a show dev ${dev} 2>/dev/null | sed -En s/".*inet6 ([^ \/]+)(\/[0-9]+)? .*"/"\1"/p | grep -Ev "^fe80"); do
+		add_rule IPV6 mangle "PREROUTING -d ${addr} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+	done
+
 	# Exempt IPv4/IPv6 destinations from VPN
 	for dest in ${EXEMPT_DESTINATIONS_IPV4}; do
 		add_rule IPV4 mangle "PREROUTING ! -i ${dev} -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
