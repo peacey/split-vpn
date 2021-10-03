@@ -157,7 +157,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     vim wg0.conf
     ```
   
-    * Press 'i' to start editing in vim, right click -> paste, press 'ESC' to exit insert mode, type ':wq' to save and exit.
+    * Press `i` to start editing in vim, right click -> paste, press `ESC` to exit insert mode, type `:wq` to save and exit.
   
 4. In your WireGuard config (wg0.conf), set PostUp and PreDown to point to the updown.sh script, and Table to a custom route table number that you will use in this script's vpn.conf. Here is an example wg0.conf file:
   
@@ -282,7 +282,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     vim wg0.conf
     ```
   
-    * Press 'i' to start editing, right click -> paste, press 'ESC' to exit insert mode, type ':wq' to save and exit.
+    * Press `i` to start editing, right click -> paste, press `ESC` to exit insert mode, type `:wq` to save and exit.
 
   
 4. In your WireGuard config (wg0.conf), set Table to a custom route table number that you will use in this script's vpn.conf. Here is an example wg0.conf file:
@@ -446,7 +446,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
   
 5. In the current folder, create a run script that will run the OpenConnect container called `run-vpn.sh`, and fill it with the following code:
   
-    * Tip: Run the vim text editor using `vim run-vpn.sh`, press 'i' to enter insert mode, right click on vim -> paste, press 'ESC' to exit insert mode, type ':wq' to save and exit.
+    * Tip: Run the vim text editor using `vim run-vpn.sh`, press `i` to enter insert mode, right click on vim -> paste, press `ESC` to exit insert mode, type `:wq` to save and exit.
   
     ```sh
     #!/bin/sh
@@ -830,6 +830,53 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
   
 </details>
 
+<details>
+  <summary>How can I force/exempt a large number of network subnets?</summary>
+	
+  * You can add your network subnets to a kernel ipset, and force/exempt that ipset via the `FORCED_IPSETS` or `EXEMPT_IPSETS` option in `vpn.conf`. Kernel ipsets are very efficient and can support up to 65536 elements each.
+  * Here is an example on how to use ipsets with this script. 
+	
+    1. Create a file under `/mnt/data/split-vpn/ipsets/networklist.txt` and add the networks to it. Here we will use vim to create and edit the file.
+        ```sh
+        mkdir -p /mnt/data/split-vpn/ipsets
+        cd /mnt/data/split-vpn/ipsets
+        vim networklist.txt
+        ```
+        * Press `i` to start editing in vim, and put your network entries one on each line. You can also right click -> paste to paste many entries. Press `ESC` when done to exit insert mode, and type `:wq` to save and exit.
+	
+    2. Download and run the `add-network-ipset.sh` script which will create the ipset and add the network subnets from the file above into the ipset.
+        ```sh
+        curl -Lo add-network-ipset.sh https://raw.githubusercontent.com/peacey/split-vpn/main/examples/ipsets/add-network-ipset.sh
+        chmod +x add-network-ipset.sh
+        ./add-network-ipset.sh
+        ```
+        * This script will create an ipset called VPN_LIST (as well as VPN_LIST4 and VPN_LIST6, the IPv4 and IPv6 parts of the list). You can change this name by modifying the `IPSET_NAME` variable at the top of the script. 
+        * The script uses `/mnt/data/split-vpn/ipsets/networklist.txt` as the location of the list file. You can change that by modifying the `LIST_FILE` variable in the script.
+	
+    3. Check that the ipset was created and the subnets were added using the ipset utility.
+        ```sh
+        ipset list VPN_LIST4
+        ipset list VPN_LIST6
+        ```
+	
+    4. If everything looks good, modify your `vpn.conf` file to force or exempt this ipset, then restart the VPN.
+	
+        * If you want to force or exempt these subnets, add the ipset `VPN_LIST` to the `FORCED_IPSETS` or `EXEMPT_IPSETS` variable. Specify 'dst' if these are destination subnets, or 'src' if these are source subnets. For example, to force this list of network subnets if they are destinations, then set
+
+          ```sh
+          FORCED_IPSETS="VPN_LIST:dst"
+          ```
+
+        * Note that the variables `FORCED_IPSETS` and `EXEMPT_IPSETS` apply to all UDMP clients, not just the ones defined in the `FORCED_SOURCE_*` options. If you want more granular control, such as forcing a different list for different UDMP clients or only for specific clients, then consider using `CUSTOM_FORCED_RULES_IPV4` or `CUSTOM_FORCED_RULES_IPV6` instead, which offers much more flexibility. See the [configuration variables](#configuration-variables) below for more information. 
+  
+      5. If you are using a boot script to start the VPN at boot, make sure to run the `add-network-ipset.sh` script before running the split-vpn script by adding the following line to the top of your boot script. If you do not run the ipset creation script first, the VPN script will error because the configured ipset was not found.
+  
+          ```sh
+          /mnt/data/split-vpn/ipsets/add-network-ipset.sh
+          ```
+	
+</details>	
+		
 <details>
   <summary>I cannot access my WAN IP from a VPN-forced client (i.e. hairpin NAT does not work). What do I do?</summary>
 
