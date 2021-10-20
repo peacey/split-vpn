@@ -702,7 +702,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     /mnt/data/split-vpn/vpn/updown.sh br0 up mycomputer
     ```
   
-      * If you need to bring down the WireGuard tunnel and resume normal Internet access to your forced clients, run the following commands in this folder:
+      * If you need to bring down the tunnel and resume normal Internet access to your forced clients, run the following commands in this folder:
   
       ```sh
       cd /mnt/data/split-vpn/nexthop/mycomputer
@@ -740,6 +740,108 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
 8. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 
 9. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+
+</details>
+	
+<details>
+  <summary>Click here to see the instructions for UDM's site-to-site.</summary>
+
+  * **PREREQUISITE:** Make sure that your site-to-site network is created in your Unifi Console, and make sure that you added the remote subnet under the site-to-site network's "Remote Subnets" option.
+  
+1. SSH into the UDM/P (assuming it's on 192.168.1.254).
+
+    ```sh
+    ssh root@192.168.1.254
+    ```
+  
+2. Run the `ip route` command to find out the name of your site-to-site interface (the name should start with "vti"). Replace "192.168.99.0/24" in the command below with your own remote subnet.
+  
+    ```sh
+    ip route show 192.168.99.0/24
+    ```
+    
+    * You should see output that looks like the following. This example shows an interface name of vti64, but yours might be a higher number depending on how many site-to-site networks you have setup on the UDM. This name will be different for each site-to-site network if you have multiple.
+        
+        `192.168.99.0/24 dev vti64 proto static scope link metric 30`
+    
+    * If you do not get any output from the above command, double check that you already added the site-to-site network in your Unifi Console, and make sure you used the correct remote subnet in the settings and the above command.
+    
+3. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
+
+    ```sh
+    cd /mnt/data
+    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
+    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
+    cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
+    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
+    ```
+    
+4. Create a directory for your VPN configuration, and copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`. "site1" is used as an example below to refer to the site-to-site network.
+  
+    ```sh
+    mkdir -p /mnt/data/split-vpn/nexthop/site1
+    cd /mnt/data/split-vpn/nexthop/site1
+    cp /mnt/data/split-vpn/vpn/vpn.conf.sample vpn.conf
+    ```
+
+5. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure to change the following options:
+  
+   * Set one of the `FORCED_*` options to choose which clients or VLANs you want to force through the VPN.
+   * Set `BYPASS_MASQUERADE_IPV4` to "ALL".
+   * Set `VPN_PROVIDER` to "nexthop".
+   * Set `VPN_ENDPOINT_IPV4` to the IP of the remote UDM (or router) on the remote subnet that you want to route traffic through. For example, set this to "192.168.99.1" if the remote subnet is 192.168.99.0/24 and the remote UDM is at 192.168.99.1.
+   * Set `GATEWAY_TABLE` to "disabled".
+   * Set `MSS_CLAMPING_IPV4` to "1382". If you do not set this option, some sites might stall.
+   * Set `DEV` to the vti interface name for your site-to-site (for example `vti64`). See Step 2 above for how to lookup the interface name.
+  
+6. Run the split-vpn up command in this folder to bring up the rules to force traffic to the VPN. Change "vti64" to your site-to-site network's interface name, and "site1" to the nickname you want to give your VPN.
+    
+    ```sh
+    /mnt/data/split-vpn/vpn/updown.sh vti64 up site1
+    ```
+  
+      * If you need to bring down the tunnel and resume normal Internet access to your forced clients, run the following commands in this folder:
+
+          ```sh
+          cd /mnt/data/split-vpn/nexthop/site1
+          /mnt/data/split-vpn/vpn/updown.sh vti64 down site1
+          ```
+  
+7. Check each client to make sure they are on the VPN by doing the following. 
+
+    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+    
+      ```sh
+      curl -4 ifconfig.co
+      curl -6 ifconfig.co
+      ```
+        
+      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
+
+    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
+    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
+    
+8. If everything is working, create a run script called `run-vpn.sh` in the current directory so you can easily run this configuration. Fill the script with the following contents:
+
+    ```sh
+    #!/bin/sh
+    
+    # Load configuration and bring routes up
+    cd /mnt/data/split-vpn/nexthop/site1
+    . ./vpn.conf
+    /mnt/data/split-vpn/vpn/updown.sh ${DEV} up site1
+    ```
+  
+    * Modify the `cd` line to point to the correct directory.
+    * **Optional**: If you want to block Internet access to forced clients if the VPN tunnel is brought down with the updown script, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file.
+    * Make sure to give the script executable permission so it can run with the following command.
+        ```sh
+        chmod +x run-vpn.sh
+        ```
+    
+9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+
+10. UDM's site-to-site doesn't support IPv6, so it is recommended to disable IPv6 for forced VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. 
 
 </details>
 
