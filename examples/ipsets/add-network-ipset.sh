@@ -5,7 +5,7 @@
 
 # Set the ipset name and list file location
 IPSET_NAME="VPN_LIST"
-LIST_FILE="/mnt/data/split-vpn/ipsets/networklist.txt"
+LIST_FILE="/etc/split-vpn/ipsets/networklist.txt"
 
 # Flush the ipsets (delete everything in them)
 ipset -! flush ${IPSET_NAME}4 >/dev/null 2>&1
