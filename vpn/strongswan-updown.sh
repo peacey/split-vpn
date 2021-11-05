@@ -35,10 +35,10 @@ case "${PLUTO_VERB}" in
 		ip route add 128.0.0.0/1 dev "${VTI_IF}" table "${ROUTE_TABLE}"
 		sysctl -w "net.ipv4.conf.${VTI_IF}.disable_policy=1" > /dev/null
 		sysctl -w "net.ipv4.conf.${VTI_IF}.rp_filter=0" > /dev/null
-		nohup /mnt/data/split-vpn/vpn/updown.sh "${VTI_IF}" up > "$VPN_CONF_DIR/splitvpn-up.log" 2>&1 &
+		nohup /etc/split-vpn/vpn/updown.sh "${VTI_IF}" up > "$VPN_CONF_DIR/splitvpn-up.log" 2>&1 &
         ;;
     down-client)
-		nohup /mnt/data/split-vpn/vpn/updown.sh "${VTI_IF}" down > "$VPN_CONF_DIR/splitvpn-down.log" 2>&1 &
+		nohup /etc/split-vpn/vpn/updown.sh "${VTI_IF}" down > "$VPN_CONF_DIR/splitvpn-down.log" 2>&1 &
 		ip tunnel del "${VTI_IF}" || true
         ;;
 esac

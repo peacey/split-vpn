@@ -7,7 +7,7 @@ This is a helper script for multiple VPN clients on the UDM that creates a split
 
 ## Features
 
-* Works with UDM-Pro, UDM base, and UDM-Pro-SE.
+* Works with UDM-Pro, UDM base, and UDM-SE, UDR, and UXG-Pro.
 * Force traffic to the VPN based on source interface (VLAN), MAC address, IP address, or IP sets.
 * Exempt sources from the VPN based on IP, MAC address, IP:port, MAC:port combinations, or IP sets. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN, or specific services on forced clients, to exclude from the VPN.
 * Exempt destinations from the VPN by IP. This allows VPN-forced clients to communicate with the LAN or other VLANs.
@@ -23,12 +23,9 @@ This is a helper script for multiple VPN clients on the UDM that creates a split
 
 ## Compatibility
 
-This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It has been tested on 1.8.x, 1.9.x, 1.10.x, and 2.2.x, however other versions should work. Please submit a bug report if you use this on a different version and encounter issues. 
+This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-Pro. It has been tested on 1.8.x, 1.9.x, 1.10.x, 1.11.x, and 2.2.x, however other versions should work. Please submit a bug report if you use this on a different version and encounter issues. 
 
-## How do I use this?
-
-<details>
-  <summary>Click here to see the instructions for OpenVPN.</summary>
+## Installation Instructions
 
 1. SSH into the UDM/P (assuming it's on 192.168.1.254).
 
@@ -36,67 +33,66 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     ssh root@192.168.1.254
     ```
     
-2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
+2. Download and run the installation script. 
 
     ```sh
-    cd /mnt/data
-    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
-    cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
-    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
+    curl -LSsf https://raw.githubusercontent.com/peacey/split-vpn/main/vpn/install-split-vpn.sh | sh
     ```
     
-3. Create a directory for your VPN provider's openvpn configuration files, and copy your VPN's configuration files (certificates, config, password files, etc) and the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`. NordVPN is used below as an example. 
+	* For the UDM, UDM Pro, UDM-SE, and UXG Pro, the script will be installed to `/mnt/data/split-vpn`. 
+	* For the UDR, the script will be installed to `/data/split-vpn`.
+	* The installation will also link the script directory to `/etc/split-vpn`, which will be used for configuration below.
+
+3. Follow the instructions below to set-up the script.
+
+## How do I use this?
+
+* Make sure you first installed split-vpn with the instructions outlined above.
+* Make sure split-vpn is linked to `/etc/split-vpn` before proceeding. This is done automatically at install, but needs to be done every reboot. Boot scripts included below automatically set up this link at boot.
+	* If you are not using a boot script, you can run `/mnt/data/split-vpn/vpn/setup-split-vpn.sh` on the UDM (or `/data/split-vpn/vpn/setup-split-vpn.sh` if using a UDR) to re-create the link. 
+
+<details>
+  <summary>Click here to see the instructions for OpenVPN.</summary>
+    
+1. Create a directory for your VPN provider's openvpn configuration files, and copy your VPN's configuration files (certificates, config, password files, etc) and the sample vpn.conf from `/etc/split-vpn/vpn/vpn.conf.sample`. NordVPN is used below as an example. 
 
     ```sh
-    mkdir -p /mnt/data/split-vpn/openvpn/nordvpn
-    cd /mnt/data/split-vpn/openvpn/nordvpn
+    mkdir -p /etc/split-vpn/openvpn/nordvpn
+    cd /etc/split-vpn/openvpn/nordvpn
     curl https://downloads.nordcdn.com/configs/files/ovpn_legacy/servers/us-ca40.nordvpn.com.udp1194.ovpn --out nordvpn.ovpn
-    cp /mnt/data/split-vpn/vpn/vpn.conf.sample /mnt/data/split-vpn/openvpn/nordvpn/vpn.conf
+    cp /etc/split-vpn/vpn/vpn.conf.sample /etc/split-vpn/openvpn/nordvpn/vpn.conf
     ```
     
-4. If your VPN provider uses a username/password, put them in a `username_password.txt` file in the same directory as the configuration with the username on the first line and password on the second line. Then either: 
+2. If your VPN provider uses a username/password, put them in a `username_password.txt` file in the same directory as the configuration with the username on the first line and password on the second line. Then either: 
     * Edit your VPN provider's openvpn config you downloaded in step 3 to reference the username_password.txt file by adding/changing this directive: `auth-user-pass username_password.txt`.
     * Use the `--auth-user-pass username_password.txt` option when you run openvpn below in step 6 or 8. 
     
     NOTE: The username/password for openvpn are usually given to you in a file or in your VPN provider's online portal. They are usually not the same as your login to the VPN. 
-5. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). 
-6. Run OpenVPN in the foreground to test if everything is working properly.
+3. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). 
+4. Run OpenVPN in the foreground to test if everything is working properly.
 
     ```sh
     openvpn --config nordvpn.ovpn \
             --route-noexec --redirect-gateway def1 \
-            --up /mnt/data/split-vpn/vpn/updown.sh \
-            --down /mnt/data/split-vpn/vpn/updown.sh \
+            --up /etc/split-vpn/vpn/updown.sh \
+            --down /etc/split-vpn/vpn/updown.sh \
             --script-security 2
     ```
     
-7. If the connection works, check each client to make sure they are on the VPN by doing the following.
+5. If the connection works, check each client to make sure they are on the VPN. See the FAQ question [How do I check my clients are on the VPN?](#faq) below.
 
-    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients. Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
-    
-      ```sh
-      curl -4 ifconfig.co
-      curl -6 ifconfig.co
-      ```
-        
-      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
-
-    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
-    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
-    
-8. If everything is working properly, stop the OpenVPN client by pressing Ctrl+C. Then, create a run script to run it in the background by creating a new file under the current directory called `run-vpn.sh`.
+6. If everything is working properly, stop the OpenVPN client by pressing Ctrl+C. Then, create a run script to run it in the background by creating a new file under the current directory called `run-vpn.sh`.
 
       ```sh
       #!/bin/sh
       # Load configuration and run openvpn
-      cd /mnt/data/split-vpn/openvpn/nordvpn
+      cd /etc/split-vpn/openvpn/nordvpn
       . ./vpn.conf
-      # /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up >pre-up.log 2>&1
+      # /etc/split-vpn/vpn/updown.sh ${DEV} pre-up >pre-up.log 2>&1
       nohup openvpn --config nordvpn.ovpn \
                     --route-noexec --redirect-gateway def1 \
-                    --up /mnt/data/split-vpn/vpn/updown.sh \
-                    --down /mnt/data/split-vpn/vpn/updown.sh \
+                    --up /etc/split-vpn/vpn/updown.sh \
+                    --down /etc/split-vpn/vpn/updown.sh \
                     --dev-type tun --dev ${DEV} \
                     --script-security 2 \
                     --ping-restart 15 \
@@ -108,17 +104,17 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     * **Optional**: If you want to enable the killswitch to block Internet access to forced clients if OpenVPN crashes, set `KILLSWITCH=1` in the `vpn.conf` file before starting OpenVPN. If you also want to block Internet access to forced clients when you exit OpenVPN cleanly (with SIGTERM), then set `REMOVE_KILLSWITCH_ON_EXIT=0`.
     * **Optional**: Uncomment the pre-up line by removing the `# ` at the beginning of the line if you want to block Internet access for forced clients while the VPN is in the process of connecting. Keeping it commented out doesn't enable the iptables kill switch until after OpenVPN connects.
   
-9. Give the run script executable permissions and run it once.
+7. Give the run script executable permissions and run it once.
   
     ```sh
-    chmod +x /mnt/data/split-vpn/openvpn/nordvpn/run-vpn.sh
-    /mnt/data/split-vpn/openvpn/nordvpn/run-vpn.sh
+    chmod +x /etc/split-vpn/openvpn/nordvpn/run-vpn.sh
+    /etc/split-vpn/openvpn/nordvpn/run-vpn.sh
     ```
   
     * If you need to bring down the VPN tunnel and rules, run `killall -TERM openvpn` to bring down all OpenVPN clients, or `kill -TERM $(pgrep -f "openvpn.*tun0")` to bring down the OpenVPN using tun0.
     
-9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
-10. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+8. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+9. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
 
 </details>
 
@@ -132,41 +128,25 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     * If adding the interface succeeded, type `ip link del wg0` to delete the wireguard interface before continuing with the steps below.
   * Note that the kernel module is dependent on the software version of your UDMP because each software update usually brings a new kernel version. If you update the UDM/P software, you also need to update the kernel module to the new version once it is released (or compile your own module for the new kernel). The module will fail to run on a kernel it was not compiled for. Hence, you have to be careful that the UDMP doesn't perform a sofware update unexpectedly if you use this module. 
   
-1. SSH into the UDM/P (assuming it's on 192.168.1.254).
-
-    ```sh
-    ssh root@192.168.1.254
-    ```
-  
-2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
-
-    ```sh
-    cd /mnt/data
-    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
-    cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
-    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
-    ```
-    
-3. Create a directory for your WireGuard configuration files, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`, and copy your WireGuard configuration file (wg0.conf) or create it. As an example below, we are creating the wg0.conf file that mullvad provides and pasting the contents into it. You can use any name for your config instead of wg0 (e.g.: mullvad-ca2.conf) and this will be the interface name of the wireguard tunnel. 
+1. Create a directory for your WireGuard configuration files, copy the sample vpn.conf from `/etc/split-vpn/vpn/vpn.conf.sample`, and copy your WireGuard configuration file (wg0.conf) or create it. As an example below, we are creating the wg0.conf file that mullvad provides and pasting the contents into it. You can use any name for your config instead of wg0 (e.g.: mullvad-ca2.conf) and this will be the interface name of the wireguard tunnel. 
   
     ```sh
-    mkdir -p /mnt/data/split-vpn/wireguard/mullvad
-    cd /mnt/data/split-vpn/wireguard/mullvad
-    cp /mnt/data/split-vpn/vpn/vpn.conf.sample /mnt/data/split-vpn/wireguard/mullvad/vpn.conf
+    mkdir -p /etc/split-vpn/wireguard/mullvad
+    cd /etc/split-vpn/wireguard/mullvad
+    cp /etc/split-vpn/vpn/vpn.conf.sample /etc/split-vpn/wireguard/mullvad/vpn.conf
     vim wg0.conf
     ```
   
     * Press `i` to start editing in vim, right click -> paste, press `ESC` to exit insert mode, type `:wq` to save and exit.
   
-4. In your WireGuard config (wg0.conf), set PostUp and PreDown to point to the updown.sh script, and Table to a custom route table number that you will use in this script's vpn.conf. Here is an example wg0.conf file:
+2. In your WireGuard config (wg0.conf), set PostUp and PreDown to point to the updown.sh script, and Table to a custom route table number that you will use in this script's vpn.conf. Here is an example wg0.conf file:
   
     ```
     [Interface]
     PrivateKey = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     Address = 10.68.1.88/32,fc00:dddd:eeee:bb01::5:6666/128
-    PostUp = sh /mnt/data/split-vpn/vpn/updown.sh %i up
-    PreDown = sh /mnt/data/split-vpn/vpn/updown.sh %i down
+    PostUp = sh /etc/split-vpn/vpn/updown.sh %i up
+    PreDown = sh /etc/split-vpn/vpn/updown.sh %i down
     Table = 101
 
     [Peer]
@@ -181,7 +161,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
       * Remove any extra PreUp/PostUp/PreDown/PostDown lines that could interfere with the VPN script. 
       * You can remove or comment out the PreUp line if you do not want VPN-forced clients to lose Internet access if WireGuard does not start correctly.
 
-5. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
+3. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
   
    * The option `DNS_IPV4_IP` and/or `DNS_IPV6_IP` is set to the DNS server you want to force for your clients, or set them to empty if you do not want to force any DNS. 
    * The option `VPN_PROVIDER` is set to "external".
@@ -189,33 +169,21 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
    * The option `ROUTE_TABLE` is the same number as `Table` in your `wg0.conf` file.
    * The option `DEV` is set to "wg0" or your interface's name if different (i.e.: the name of your .conf file).
   
-6. Run wg-quick to start wireguard with your configuration and test if the connection worked. Replace wg0 with your interface name if different. 
+4. Run wg-quick to start wireguard with your configuration and test if the connection worked. Replace wg0 with your interface name if different. 
 
     ```sh
     /mnt/data/wireguard/setup_wireguard.sh
     wg-quick up ./wg0.conf
     ```
   
-    * You can skip the first line if you already setup the wireguard kernel module previously as instructed at [wireguard-kmod](https://github.com/tusc/wireguard-kmod).
+    * You can skip the first line if you already setup the wireguard kernel module previously as instructed at [wireguard-kmod](https://github.com/tusc/wireguard-kmod). Note for the UDR the setup script is under `/data`, so run `/data/wireguard/setup_wireguard.sh` instead.
     * Type `wg` to check your WireGuard connection and make sure you received a handshake. No handshake indicates something is wrong with your wireguard configuration. Double check your configuration's Private and Public key and other variables.
     * If you need to bring down the WireGuard tunnel, run `wg-quick down ./wg0.conf` in this folder (replace wg0.conf with your interface configuration if different).
     * Note that wg-quick up/down commands need to be run from this folder so the script can pick up the correct configuration file.
     
-7. If the connection works, check each client to make sure they are on the VPN by doing the following.
+5. If the connection works, check each client to make sure they are on the VPN. See the FAQ question [How do I check my clients are on the VPN?](#faq) below.
 
-    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
-    
-      ```sh
-      curl -4 ifconfig.co
-      curl -6 ifconfig.co
-      ```
-        
-      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
-
-    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
-    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
-    
-8. If everything is working, create a run script called `run-vpn.sh` in the current directory so you can easily run this wireguard configuration. Fill the script with the following contents:
+6. If everything is working, create a run script called `run-vpn.sh` in the current directory so you can easily run this wireguard configuration. Fill the script with the following contents:
   
     ```sh
     #!/bin/sh
@@ -224,68 +192,53 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     /mnt/data/wireguard/setup_wireguard.sh
 
     # Load configuration and run wireguard
-    cd /mnt/data/split-vpn/wireguard/mullvad
+    cd /etc/split-vpn/wireguard/mullvad
     . ./vpn.conf
-    # /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up >pre-up.log 2>&1
+    # /etc/split-vpn/vpn/updown.sh ${DEV} pre-up >pre-up.log 2>&1
     wg-quick up ./${DEV}.conf >wireguard.log 2>&1
     cat wireguard.log
     ```
   
+	* For the UDR only, change the setup_wireguard.sh line to the correct data directory: `/data/wireguard/setup_wireguard.sh`.
     * Modify the `cd` line to point to the correct directory. Make sure that the `DEV` variable in the `vpn.conf` file is set to the wireguard interface name (which should the same as the wireguard configuration filename without .conf).
     * **Optional**: If you want to block Internet access to forced clients if the wireguard tunnel is brought down via wg-quick, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file.
     * **Optional**: Uncomment the pre-up line by removing the `# ` at the beginning of the line if you want to block Internet access for forced clients if wireguard fails to run. Keeping it commented out doesn't enable the iptables kill switch until after wireguard runs successfully.
 
-9. Give the script executable permissions. You can run this script next time you want to start this wireguard configuration.
+7. Give the script executable permissions. You can run this script next time you want to start this wireguard configuration.
   
     ```sh
-    chmod +x /mnt/data/split-vpn/wireguard/mullvad/run-vpn.sh
+    chmod +x /etc/split-vpn/wireguard/mullvad/run-vpn.sh
     ```
   
-10. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+8. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 
-11. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+9. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
   
-12. Note that the WireGuard protocol is practically stateless, so there is no way to know whether the connection stopped working except by checking that you didn't receive a handshake within 3 minutes or some higher interval. This means if you want to automatically bring down the split-vpn rules when WireGuard stops working and bring it back up when it starts working again, you need to write an external script to check the last handshake condition every few seconds and act on it (not covered here).
+10. Note that the WireGuard protocol is practically stateless, so there is no way to know whether the connection stopped working except by checking that you didn't receive a handshake within 3 minutes or some higher interval. This means if you want to automatically bring down the split-vpn rules when WireGuard stops working and bring it back up when it starts working again, you need to write an external script to check the last handshake condition every few seconds and act on it (not covered here).
 
 </details>
 
 <details>
   <summary>Click here to see the instructions for wireguard-go (software implementation).</summary>
 
-  * **PREREQUISITE:** Make sure the wireguard-go container is installed as instructed at the [wireguard-go repo](https://github.com/boostchicken/udm-utilities/tree/master/wireguard-go). After this step, you should have the directory `/mnt/data/wireguard` and the run script `/mnt/data/on_boot.d/20-wireguard.sh` installed.
-    *   **NOTE:** This requires podman which comes pre-installed on the non-SE UDMs. For the UDM SE, you need to install podman first (instructions not included).
+  * **PREREQUISITE:** Make sure the wireguard-go container is installed as instructed at the [wireguard-go repo](https://github.com/boostchicken/udm-utilities/tree/master/wireguard-go). After this step, you should have the wireguard directory (for example: `/mnt/data/wireguard`) and the run script `/mnt/data/on_boot.d/20-wireguard.sh` installed. 
+    *   **NOTE:** This requires podman which comes pre-installed on the non-SE UDMs. For the UDM SE or UDR, you need to install podman first (instructions not included).
   * The wireguard-go container only supports a single interface - wg0. This means you cannot connect to multiple wireguard servers. If you want to use multiple servers with this script, then use the WireGuard kernel module instead as explained above. 
   * wireguard-go is a software implementation of WireGuard, and will have reduced performance compared to the kernel module. However, wireguard-go is not dependent on your UDM/P's kernel version, and will not break when your UDM/P updates.
   
-1. SSH into the UDM/P (assuming it's on 192.168.1.254).
-
-    ```sh
-    ssh root@192.168.1.254
-    ```
-  
-2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
-
-    ```sh
-    cd /mnt/data
-    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
-    cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
-    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
-    ```
-    
-3. Create a directory for your WireGuard configuration files under `/mnt/data/wireguard` if not created already, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`, and copy your WireGuard configuration file (wg0.conf) or create it. As an example below, we are creating the wg0.conf file that mullvad provides and pasting the contents into it. You can only use wg0.conf and not any other name because the wireguard-go container expects this configuration file. 
+1. Create a directory for your WireGuard configuration files under `/mnt/data/wireguard` if not created already, copy the sample vpn.conf from `/etc/split-vpn/vpn/vpn.conf.sample`, and copy your WireGuard configuration file (wg0.conf) or create it. As an example below, we are creating the wg0.conf file that mullvad provides and pasting the contents into it. You can only use wg0.conf and not any other name because the wireguard-go container expects this configuration file. 
   
     ```sh
     mkdir -p /mnt/data/wireguard
     cd /mnt/data/wireguard
-    cp /mnt/data/split-vpn/vpn/vpn.conf.sample /mnt/data/wireguard/vpn.conf
+    cp /etc/split-vpn/vpn/vpn.conf.sample /mnt/data/wireguard/vpn.conf
     vim wg0.conf
     ```
   
     * Press `i` to start editing, right click -> paste, press `ESC` to exit insert mode, type `:wq` to save and exit.
 
   
-4. In your WireGuard config (wg0.conf), set Table to a custom route table number that you will use in this script's vpn.conf. Here is an example wg0.conf file:
+2. In your WireGuard config (wg0.conf), set Table to a custom route table number that you will use in this script's vpn.conf. Here is an example wg0.conf file:
   
     ```
     [Interface]
@@ -305,7 +258,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
       * Remove any extra PreUp/PostUp/PreDown/PostDown lines that could interfere with the VPN script.
       * Do not use PreUp/PostUp/PreDown to call the split-vpn script (like in the wireguard kernel module case) because the container will not have access to the location of the script. Instead, we will call the script manually after bringing the interface up/down as instructed below. 
 
-5. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
+3. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
   
    * The option `DNS_IPV4_IP` and/or `DNS_IPV6_IP` is set to the DNS server you want to force for your clients, or set them to empty if you do not want to force any DNS. 
    * The option `VPN_PROVIDER` is set to "external".
@@ -313,7 +266,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
    * The option `ROUTE_TABLE` is the same number as `Table` in your `wg0.conf` file.
    * The option `DEV` is set to "wg0".
 
-6. Create a run script called `run-vpn.sh` in this current directory and fill it with the following:
+4. Create a run script called `run-vpn.sh` in this current directory and fill it with the following:
   
     ```sh
     #!/bin/sh
@@ -323,7 +276,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     cd /mnt/data/wireguard
 
     # Start the split-vpn pre-up hook.
-    # /mnt/data/split-vpn/vpn/updown.sh wg0 pre-up >pre-up.log 2>&1
+    # /etc/split-vpn/vpn/updown.sh wg0 pre-up >pre-up.log 2>&1
 
     # Starts a wireguard container that is deleted after it is stopped.
     # All configs stored in /mnt/data/wireguard
@@ -349,7 +302,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     done
     if [ $started = 1 ]; then
             echo "wireguard-go started successfully." > wireguard.log
-            /mnt/data/split-vpn/vpn/updown.sh wg0 up >> wireguard.log 2>&1
+            /etc/split-vpn/vpn/updown.sh wg0 up >> wireguard.log 2>&1
     else
             echo "Error: wireguard-go did not start up correctly within 5 seconds." > wireguard.log
     fi
@@ -361,14 +314,14 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     * **Optional**: If you want to block Internet access to forced clients if the wireguard tunnel is brought down via wg-quick, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file.
     * **Optional**: Uncomment the pre-up line by removing the `# ` at the beginning of the line if you want to block Internet access for forced clients if wireguard fails to run. Keeping it commented out doesn't enable the iptables kill switch until after wireguard runs successfully.
 
-7. Give the run script executable permissions and run the run script.
+5. Give the run script executable permissions and run the run script.
   
     ```sh
     chmod +x /mnt/data/wireguard/run-vpn.sh
     /mnt/data/wireguard/run-vpn.sh
     ```
   
-8. If wireguard-go started successfully, check that the connection worked by seeing if you received a handshake with the following command:
+6. If wireguard-go started successfully, check that the connection worked by seeing if you received a handshake with the following command:
   
     ```sh
     podman exec -it wireguard wg
@@ -380,85 +333,57 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
       ```sh
       cd /mnt/data/wireguard
       podman stop wireguard
-      /mnt/data/split-vpn/vpn/updown.sh wg0 down
+      /etc/split-vpn/vpn/updown.sh wg0 down
       ```
   
     * Note that split-vpn up/down commands need to be run from this folder so that split-vpn can pick up the correct configuration file.
     
-9. If the connection works, check each client to make sure they are on the VPN by doing the following.
+7. If the connection works, check each client to make sure they are on the VPN. See the FAQ question [How do I check my clients are on the VPN?](#faq) below.
 
-    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+8. If you want to continue blocking Internet access to forced clients after the wireguard tunnel is brought down via the split-vpn down command, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
     
-      ```sh
-      curl -4 ifconfig.co
-      curl -6 ifconfig.co
-      ```
-        
-      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
+9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 
-    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
-    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
-    
-10. If you want to continue blocking Internet access to forced clients after the wireguard tunnel is brought down via the split-vpn down command, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
-    
-11. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
-
-12. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+10. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
   
-13. Note that the WireGuard protocol is practically stateless, so there is no way to know whether the connection stopped working except by checking that you didn't receive a handshake within 3 minutes or some higher interval. This means if you want to automatically bring down the split-vpn rules when WireGuard stops working and bring it back up when it starts working again, you need to write an external script to check the last handshake condition every few seconds and act on it (not covered here).
+11. Note that the WireGuard protocol is practically stateless, so there is no way to know whether the connection stopped working except by checking that you didn't receive a handshake within 3 minutes or some higher interval. This means if you want to automatically bring down the split-vpn rules when WireGuard stops working and bring it back up when it starts working again, you need to write an external script to check the last handshake condition every few seconds and act on it (not covered here).
   
 </details>
 
 <details>
   <summary>Click here to see the instructions for OpenConnect (i.e. AnyConnect).</summary>
   
-  **NOTE:** This requires podman which comes pre-installed on the non-SE UDMs. For the UDM SE, you need to install podman first (instructions not included).
+  **NOTE:** This requires podman which comes pre-installed on the non-SE UDMs. For the UDM SE or UDR, you need to install podman first (instructions not included).
 
-1. SSH into the UDM/P (assuming it's on 192.168.1.254).
-
-    ```sh
-    ssh root@192.168.1.254
-    ```
-  
-2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
-
-    ```sh
-    cd /mnt/data
-    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
-    cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
-    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
-    ```
-    
-3. Create a directory for your OpenConnect configuration files under `/mnt/data/split-vpn/openconnect`, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`, and copy any certificates needed or other client files for your configuration. As an example below, we are going to connect a server that only uses a username/password, so no certificate is needed, but we have to create a password.txt file and put the password inside it.
+1. Create a directory for your OpenConnect configuration files under `/etc/split-vpn/openconnect`, copy the sample vpn.conf from `/etc/split-vpn/vpn/vpn.conf.sample`, and copy any certificates needed or other client files for your configuration. As an example below, we are going to connect a server that only uses a username/password, so no certificate is needed, but we have to create a password.txt file and put the password inside it.
   
     ```sh
-    mkdir -p /mnt/data/split-vpn/openconnect/server1
-    cd /mnt/data/split-vpn/openconnect/server1
-    cp /mnt/data/split-vpn/vpn/vpn.conf.sample vpn.conf
+    mkdir -p /etc/split-vpn/openconnect/server1
+    cd /etc/split-vpn/openconnect/server1
+    cp /etc/split-vpn/vpn/vpn.conf.sample vpn.conf
     echo "mypassword" > password.txt
     ```
   
-4. Edit the `vpn.conf` file in this folder with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
+2. Edit the `vpn.conf` file in this folder with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
 
     * The options `DNS_IPV4_IP` and `DNS_IPV6_IP` are set to "DHCP" if you want to force VPN-forced clients to use the DNS provided by the VPN server. 
     * The option `VPN_PROVIDER` is set to "openconnect". This is required for the script to work with OpenConnect.
   
-5. In the current folder, create a run script that will run the OpenConnect container called `run-vpn.sh`, and fill it with the following code:
+3. In the current folder, create a run script that will run the OpenConnect container called `run-vpn.sh`, and fill it with the following code:
   
     * Tip: Run the vim text editor using `vim run-vpn.sh`, press `i` to enter insert mode, right click on vim -> paste, press `ESC` to exit insert mode, type `:wq` to save and exit.
   
     ```sh
     #!/bin/sh
-    cd "/mnt/data/split-vpn/openconnect/server1"
+    cd "/etc/split-vpn/openconnect/server1"
     . ./vpn.conf
     podman rm -f openconnect-${DEV} >/dev/null 2>&1
-    /mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up
+    /etc/split-vpn/vpn/updown.sh ${DEV} pre-up
     podman run -id --privileged  --name=openconnect-${DEV} \
         --network host --pid=host \
         -e TZ="$(cat /etc/timezone)" \
         -v "${PWD}:/etc/split-vpn/config" \
-        -v "/mnt/data/split-vpn/vpn:/etc/split-vpn/vpn" \
+        -v "/etc/split-vpn/vpn:/etc/split-vpn/vpn" \
         -w "/etc/split-vpn/config" \
         --restart on-failure \
         peacey/udm-openconnect \
@@ -472,13 +397,13 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     * If you do not want to run the VPN in the background (e.g. for testing), remove the "d" from `podman run -id` in the 5th line.
     * This code writes the output to openconnect.log in the current folder. 
   
-6. Give the script executable permissions.
+4. Give the script executable permissions.
   
   ```sh
   chmod +x run-vpn.sh
   ```
   
-7. Run the script from the configuration folder.
+5. Run the script from the configuration folder.
   
   ```sh
   ./run-vpn.sh
@@ -492,29 +417,17 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     ````
     * Replace tun0 in the last line with the DEV you configured in vpn.conf (default is tun0). You can also use `kill -TERM $(pgrep -f "openconnect.*tun0")` to kill only the tun0 openconnect instance if you have multiple servers connected.
   
-8. The first time the script runs, it will download the OpenConnect docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
+6. The first time the script runs, it will download the OpenConnect docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
     
     * If the script ran successfully, check the `openconnect.log` file by running `cat openconnect.log`. If the connection is working, you should see that OpenConnect established a connection without errors and that split-vpn ran.
   
-9. If the connection works, check each client to make sure they are on the VPN by doing the following.
-
-    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+7. If the connection works, check each client to make sure they are on the VPN. See the FAQ question [How do I check my clients are on the VPN?](#faq) below.
     
-      ```sh
-      curl -4 ifconfig.co
-      curl -6 ifconfig.co
-      ```
-        
-      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
-
-    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
-    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
+8. If you want to continue blocking Internet access to forced clients after the openconnect client is shut down, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
     
-10. If you want to continue blocking Internet access to forced clients after the openconnect client is shut down, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
-    
-11. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 
-12. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+10. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
   
 </details>
     
@@ -523,38 +436,22 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
   
   **NOTE:** This requires podman which comes pre-installed on the non-SE UDMs. For the UDM SE, you need to install podman first (instructions not included).
 
-1. SSH into the UDM/P (assuming it's on 192.168.1.254).
-
-    ```sh
-    ssh root@192.168.1.254
-    ```
-  
-2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
-
-    ```sh
-    cd /mnt/data
-    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
-    cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
-    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
-    ```
-    
-3. Create a directory for your StrongSwan configuration files under `/mnt/data/split-vpn/strongswan`, copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`. In this example, we are making a folder for PureVPN.
+1. Create a directory for your StrongSwan configuration files under `/etc/split-vpn/strongswan`, copy the sample vpn.conf from `/etc/split-vpn/vpn/vpn.conf.sample`. In this example, we are making a folder for PureVPN.
   
     ```sh
-    mkdir -p /mnt/data/split-vpn/strongswan/purevpn
-    cd /mnt/data/split-vpn/strongswan/purevpn
-    cp /mnt/data/split-vpn/vpn/vpn.conf.sample vpn.conf
+    mkdir -p /etc/split-vpn/strongswan/purevpn
+    cd /etc/split-vpn/strongswan/purevpn
+    cp /etc/split-vpn/vpn/vpn.conf.sample vpn.conf
     ```
   
-4. Copy your strongswan configuration that defines your VPN connection and any certificates needed to this folder. In this example, we are downloading the files needed for PureVPN, but the configuration will be different for other VPN providers.
+2. Copy your strongswan configuration that defines your VPN connection and any certificates needed to this folder. In this example, we are downloading the files needed for PureVPN, but the configuration will be different for other VPN providers.
   
     ```sh
     curl -Lo purevpn.conf https://raw.githubusercontent.com/peacey/split-vpn/main/examples/strongswan/purevpn/purevpn.conf
     curl -Lo USERTrustRSACertificationAuthority.crt https://raw.githubusercontent.com/peacey/split-vpn/main/examples/strongswan/purevpn/USERTrustRSACertificationAuthority.crt
     ```
   
-5. Edit the purevpn.conf strongswan configuration with vim:
+3. Edit the purevpn.conf strongswan configuration with vim:
   
     ```sh
     vim purevpn.conf
@@ -566,28 +463,28 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     * Change the 4 instances of `purevpn0dXXXXXXXX` in the file to your own PureVPN username. Make sure to change all 4.
     * Change `secret = "mysecret"` at the bottom of the file to your own password. The password is found in the PureVPN account page, this is not the same password that you use to login to PureVPN's web portal. 
   
-6. Edit the `vpn.conf` file in this folder with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure to check:
+4. Edit the `vpn.conf` file in this folder with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure to check:
 
     * The options `DNS_IPV4_IP` and `DNS_IPV6_IP` are commented out if you want to force VPN-forced clients to use the DNS provided by the VPN server, or set them to set to "" (empty) to disable DNS forcing. 
     * The option `VPN_PROVIDER` is set to "external". This is required for the script to work with StrongSwan.
     * Comment out the options `VPN_ENDPOINT_IPV4` and `VPN_ENDPOINT_IPV6` (i.e. add a `#` in front of them).
     * The tunnel device option `DEV` is set to a unique name for each configuration, such as vti256. Ubiquiti uses vti64 and up so do not use anything close to that.
   
-7. In the current folder, create a run script that will run the the StrongSwan container called `run-vpn.sh`, and fill it with the following code:
+5. In the current folder, create a run script that will run the the StrongSwan container called `run-vpn.sh`, and fill it with the following code:
   
     * Tip: Run the vim text editor using `vim run-vpn.sh`, press `i` to enter insert mode, right click on vim -> paste, press `ESC` to exit insert mode, type `:wq` to save and exit.
   
     ```sh
     #!/bin/sh
-    cd "/mnt/data/split-vpn/strongswan/purevpn"
+    cd "/etc/split-vpn/strongswan/purevpn"
     . ./vpn.conf
  
     podman rm -f strongswan-${DEV} &> /dev/null
-    #/mnt/data/split-vpn/vpn/updown.sh ${DEV} pre-up
+    #/etc/split-vpn/vpn/updown.sh ${DEV} pre-up
     podman run -d --name strongswan-${DEV} --network host --privileged \
 	      -v "./purevpn.conf:/etc/swanctl/conf.d/purevpn.conf" \
 	      -v "${PWD}:${PWD}" \
-	      -v "/mnt/data/split-vpn/vpn:/mnt/data/split-vpn/vpn" \
+	      -v "/etc/split-vpn/vpn:/etc/split-vpn/vpn" \
 	      -e TZ="$(cat /etc/timezone)" \
 	      -v "/etc/timezone:/etc/timezone" \
 	      peacey/udm-strongswan
@@ -609,7 +506,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     * **Optional**: Uncomment the pre-up line by removing the `# ` at the beginning of the line if you want to block Internet access for forced clients while the VPN is in the process of connecting. Keeping it commented out doesn't enable the iptables kill switch until after the VPN connects.
 
   
-8. Give the script executable permissions and run it.
+6. Give the script executable permissions and run it.
   
       ```sh
       chmod +x run-vpn.sh
@@ -623,31 +520,19 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
         ```
         * Replace vti256 in the last line with the DEV you configured in vpn.conf. 
   
-9. The first time the script runs, it will download the StrongSwan docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
+7. The first time the script runs, it will download the StrongSwan docker container. If the container ran successfully, you should see a random string of numbers and letters. Warnings about major/minor number can be ignored. 
     
     * If the script ran successfully, check that the VPN tunnel device was created by running `ip addr show dev vti256`, and check that you can ping through the tunnel by running `ping -I vti256 1.1.1.1` (for example).
     * If you're having problems, check the log by running `podman logs strongswan-vti256` (replace vti256 with your DEV if different). Also check `splitvpn-up.log` in the current folder.
     * If you are having intermittent connection issues or websites stalling, you might need to adjust your MSS clamping using the `MSS_CLAMPING_IPV4` or `MSS_CLAMPING_IPV6` options in your `vpn.conf` file.
   
-10. If the connection works, check each client to make sure they are on the VPN by doing the following.
-
-    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+8. If the connection works, check each client to make sure they are on the VPN. See the FAQ question [How do I check my clients are on the VPN?](#faq) below.
     
-      ```sh
-      curl -4 ifconfig.co
-      curl -6 ifconfig.co
-      ```
-        
-      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
-
-    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
-    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
+9. If you want to continue blocking Internet access to forced clients after the strongswan client is shut down, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
     
-11. If you want to continue blocking Internet access to forced clients after the strongswan client is shut down, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file. 
-    
-12. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+10. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 
-13. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+11. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
   
 </details>
 
@@ -665,81 +550,53 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
       ip6tables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
       ```
   
-1. After your VPN computer is set up correctly, SSH into the UDM/P (assuming it's on 192.168.1.254).
-
-    ```sh
-    ssh root@192.168.1.254
-    ```
-  
-2. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
-
-    ```sh
-    cd /mnt/data
-    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
-    cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
-    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
-    ```
-    
-3. Create a directory for your VPN configuration, and copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`.
+1. Create a directory for your VPN configuration, and copy the sample vpn.conf from `/etc/split-vpn/vpn/vpn.conf.sample`.
   
     ```sh
-    mkdir -p /mnt/data/split-vpn/nexthop/mycomputer
-    cd /mnt/data/split-vpn/nexthop/mycomputer
-    cp /mnt/data/split-vpn/vpn/vpn.conf.sample vpn.conf
+    mkdir -p /etc/split-vpn/nexthop/mycomputer
+    cd /etc/split-vpn/nexthop/mycomputer
+    cp /etc/split-vpn/vpn/vpn.conf.sample vpn.conf
     ```
 
-4. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
+2. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure that:
   
    * The option `GATEWAY_TABLE` is set to "disabled" if your nexthop computer is on your LAN (most likely it is, as you wouldn't want to send unencrypted traffic over your WAN). The connection will not work if GATEWAY_TABLE is not set to "disabled" for LAN computers. 
    * The option `VPN_PROVIDER` is set to "nexthop".
    * The option `VPN_ENDPOINT_IPV4` and `VPN_ENDPOINT_IPV6` is set to the IP of the computer on your network that is running the VPN client that you want to redirect traffic to. If your VPN computer does not support IPv6, then only set the IPv4 address. 
    * The option `DEV` is set to the bridge interface that your VPN computer is on, for example "br0" for main LAN or "br6" for VLAN 6 (i.e.: VLAN X is on interface brX).
   
-5. Run the split-vpn up command in this folder to bring up the rules to force traffic to the VPN. Change "br0" to the interface your VPN computer is on, and "mycomputer" to the nickname you want to refer to this computer with when you bring down the VPN connection. 
+3. Run the split-vpn up command in this folder to bring up the rules to force traffic to the VPN. Change "br0" to the interface your VPN computer is on, and "mycomputer" to the nickname you want to refer to this computer with when you bring down the VPN connection. 
 
     ```sh
-    /mnt/data/split-vpn/vpn/updown.sh br0 up mycomputer
+    /etc/split-vpn/vpn/updown.sh br0 up mycomputer
     ```
   
       * If you need to bring down the tunnel and resume normal Internet access to your forced clients, run the following commands in this folder:
   
       ```sh
-      cd /mnt/data/split-vpn/nexthop/mycomputer
-      /mnt/data/split-vpn/vpn/updown.sh br0 down mycomputer
+      cd /etc/split-vpn/nexthop/mycomputer
+      /etc/split-vpn/vpn/updown.sh br0 down mycomputer
       ```
   
-6. Check each client to make sure they are on the VPN by doing the following.
-
-    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+4. If the connection works, check each client to make sure they are on the VPN. See the FAQ question [How do I check my clients are on the VPN?](#faq) below.
     
-      ```sh
-      curl -4 ifconfig.co
-      curl -6 ifconfig.co
-      ```
-        
-      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
-
-    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
-    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
-    
-7. If everything is working, create a run script called `run-vpn.sh` in the current directory so you can easily run this configuration. Fill the script with the following contents:
+5. If everything is working, create a run script called `run-vpn.sh` in the current directory so you can easily run this configuration. Fill the script with the following contents:
 
     ```sh
     #!/bin/sh
     
     # Load configuration and bring routes up
-    cd /mnt/data/split-vpn/nexthop/mycomputer
+    cd /etc/split-vpn/nexthop/mycomputer
     . ./vpn.conf
-    /mnt/data/split-vpn/vpn/updown.sh ${DEV} up mycomputer
+    /etc/split-vpn/vpn/updown.sh ${DEV} up mycomputer
     ```
   
     * Modify the `cd` line to point to the correct directory.
     * **Optional**: If you want to block Internet access to forced clients if the VPN tunnel is brought down with the updown script, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file.
     
-8. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+6. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 
-9. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
+7. If your VPN provider doesn't support IPv6, it is recommended to disable IPv6 for that VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. If you don't disable IPv6, clients on that network will try to communicate over IPv6 first and fail, then fallback to IPv4. This creates a delay that can be avoided if IPv6 is turned off completely for that network or client.
 
 </details>
 	
@@ -748,13 +605,7 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
 
   * **PREREQUISITE:** Make sure that your site-to-site network is created in your Unifi Console, and make sure that you added the remote subnet under the site-to-site network's "Remote Subnets" option.
   
-1. SSH into the UDM/P (assuming it's on 192.168.1.254).
-
-    ```sh
-    ssh root@192.168.1.254
-    ```
-  
-2. Run the `ip route` command to find out the name of your site-to-site interface (the name should start with "vti"). Replace "192.168.99.0/24" in the command below with your own remote subnet.
+1. Run the `ip route` command to find out the name of your site-to-site interface (the name should start with "vti"). Replace "192.168.99.0/24" in the command below with your own remote subnet.
   
     ```sh
     ip route show 192.168.99.0/24
@@ -766,25 +617,15 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
     
     * If you do not get any output from the above command, double check that you already added the site-to-site network in your Unifi Console, and make sure you used the correct remote subnet in the settings and the above command.
     
-3. Download the scripts package, extract it to `/mnt/data/split-vpn/vpn`, and give it executable permissions.
-
-    ```sh
-    cd /mnt/data
-    mkdir -p /mnt/data/split-vpn && cd /mnt/data/split-vpn
-    curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - -o
-    cp -rf split-vpn-main/vpn ./ && rm -rf split-vpn-main
-    chmod +x vpn/*.sh vpn/hooks/*/*.sh vpn/vpnc-script
-    ```
-    
-4. Create a directory for your VPN configuration, and copy the sample vpn.conf from `/mnt/data/split-vpn/vpn/vpn.conf.sample`. "site1" is used as an example below to refer to the site-to-site network.
+2. Create a directory for your VPN configuration, and copy the sample vpn.conf from `/etc/split-vpn/vpn/vpn.conf.sample`. "site1" is used as an example below to refer to the site-to-site network.
   
     ```sh
-    mkdir -p /mnt/data/split-vpn/nexthop/site1
-    cd /mnt/data/split-vpn/nexthop/site1
-    cp /mnt/data/split-vpn/vpn/vpn.conf.sample vpn.conf
+    mkdir -p /etc/split-vpn/nexthop/site1
+    cd /etc/split-vpn/nexthop/site1
+    cp /etc/split-vpn/vpn/vpn.conf.sample vpn.conf
     ```
 
-5. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure to change the following options:
+3. Edit the `vpn.conf` file with your desired settings. See the explanation of each setting [below](#configuration-variables). Make sure to change the following options:
   
    * Set one of the `FORCED_*` options to choose which clients or VLANs you want to force through the VPN.
    * Set `BYPASS_MASQUERADE_IPV4` to "ALL".
@@ -794,42 +635,30 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
    * Set `MSS_CLAMPING_IPV4` to "1382". If you do not set this option, some sites might stall.
    * Set `DEV` to the vti interface name for your site-to-site (for example `vti64`). See Step 2 above for how to lookup the interface name.
   
-6. Run the split-vpn up command in this folder to bring up the rules to force traffic to the VPN. Change "vti64" to your site-to-site network's interface name, and "site1" to the nickname you want to give your VPN.
+4. Run the split-vpn up command in this folder to bring up the rules to force traffic to the VPN. Change "vti64" to your site-to-site network's interface name, and "site1" to the nickname you want to give your VPN.
     
     ```sh
-    /mnt/data/split-vpn/vpn/updown.sh vti64 up site1
+    /etc/split-vpn/vpn/updown.sh vti64 up site1
     ```
   
       * If you need to bring down the tunnel and resume normal Internet access to your forced clients, run the following commands in this folder:
 
           ```sh
-          cd /mnt/data/split-vpn/nexthop/site1
-          /mnt/data/split-vpn/vpn/updown.sh vti64 down site1
+          cd /etc/split-vpn/nexthop/site1
+          /etc/split-vpn/vpn/updown.sh vti64 down site1
           ```
   
-7. Check each client to make sure they are on the VPN by doing the following. 
-
-    * Check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients (not the UDM/P). Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+5. If the connection works, check each client to make sure they are on the VPN. See the FAQ question [How do I check my clients are on the VPN?](#faq) below.
     
-      ```sh
-      curl -4 ifconfig.co
-      curl -6 ifconfig.co
-      ```
-        
-      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
-
-    * Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
-    * Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
-    
-8. If everything is working, create a run script called `run-vpn.sh` in the current directory so you can easily run this configuration. Fill the script with the following contents:
+6. If everything is working, create a run script called `run-vpn.sh` in the current directory so you can easily run this configuration. Fill the script with the following contents:
 
     ```sh
     #!/bin/sh
     
     # Load configuration and bring routes up
-    cd /mnt/data/split-vpn/nexthop/site1
+    cd /etc/split-vpn/nexthop/site1
     . ./vpn.conf
-    /mnt/data/split-vpn/vpn/updown.sh ${DEV} up site1
+    /etc/split-vpn/vpn/updown.sh ${DEV} up site1
     ```
   
     * Modify the `cd` line to point to the correct directory.
@@ -839,9 +668,9 @@ This script is designed to be run on the UDM-Pro, UDM base, or UDM-Pro-SE. It ha
         chmod +x run-vpn.sh
         ```
     
-9. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
+7. Now you can exit the UDM/P. If you would like to start the VPN client at boot, please read on to the next section. 
 
-10. UDM's site-to-site doesn't support IPv6, so it is recommended to disable IPv6 for forced VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. 
+8. UDM's site-to-site doesn't support IPv6, so it is recommended to disable IPv6 for forced VLAN in the UDMP settings, or on the client, so that you don't encounter any delays. 
 
 </details>
 
@@ -852,21 +681,12 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
 <details>
   <summary>Click here to see the instructions for how to set up the boot script.</summary>
   
-**PREREQUISITE**:
-  * For the non-SE UDM base or Pro, set-up UDM Utilities Boot Script by following the instructions [here](https://github.com/boostchicken/udm-utilities/blob/master/on-boot-script/README.md) before following the instructions below.
-  * For the UDM-Pro-SE, run the following commands to install a boot service for the VPN script.
-    ```sh
-    curl -o /etc/systemd/system/run-vpn.service https://raw.githubusercontent.com/peacey/split-vpn/main/examples/systemd/run-vpn.service
-    systemctl daemon-reload
-    systemctl enable run-vpn
-    ```
-  
-  1. Create a master run script under `/mnt/data/split-vpn/run-vpn.sh` that will be used to run your VPNs. In this master script, call the run script of each VPN client that you want to run at boot (the run script should have been created if you followed the instructions [above](#how-do-i-use-this)). For example, here we are running a wireguard client and an OpenVPN client.
+  1. Create a master run script under `/etc/split-vpn/run-vpn.sh` that will be used to run your VPNs. In this master script, call the run script of each VPN client that you want to run at boot (the run script should have been created if you followed the instructions [above](#how-do-i-use-this)). For example, here we are running a wireguard client and an OpenVPN client.
   
       ```sh
       #!/bin/sh
-      /mnt/data/split-vpn/wireguard/mullvad/run-vpn.sh
-      /mnt/data/split-vpn/openvpn/nordvpn/run-vpn.sh
+      /etc/split-vpn/wireguard/mullvad/run-vpn.sh
+      /etc/split-vpn/openvpn/nordvpn/run-vpn.sh
       ```
   
       * You can run as many VPN clients as you want. 
@@ -878,17 +698,24 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
   2. Give the master run script executable permissions. 
   
       ```sh
-      chmod +x /mnt/data/split-vpn/run-vpn.sh
+      chmod +x /etc/split-vpn/run-vpn.sh
       ```
   
-  3. If you are using the non-SE UDM/P, link the master run script to the on_boot.d directory.
-  
-      ```sh
-      ln -s /mnt/data/split-vpn/run-vpn.sh /mnt/data/on_boot.d/99-run-vpn.sh
-      ```
-  
-      * This step is not needed on the UDM SE because the boot service that was installed in the prerequisite instructions above (run-vpn.service) runs the master run script directly from `/mnt/data/split-vpn/run-vpn.sh`.
-  
+  3. Install the boot service for your device.
+    
+      * For the UDM or UDM Pro, set-up UDM Utilities Boot Script by following the instructions [here](https://github.com/boostchicken/udm-utilities/blob/master/on-boot-script/README.md) first. Then install the boot script by running:
+          ```sh
+          curl -o /mnt/data/on_boot.d/99-run-vpn.sh https://raw.githubusercontent.com/peacey/split-vpn/main/examples/boot/run-vpn.sh
+          chmod +x /mnt/data/on_boot.d/99-run-vpn.sh
+          ```
+
+      * For the UDM-SE or UDR, run the following commands to install a systemd boot service.
+
+          ```sh
+          curl -o /etc/systemd/system/run-vpn.service https://raw.githubusercontent.com/peacey/split-vpn/main/examples/boot/run-vpn.service
+          systemctl daemon-reload && systemctl enable run-vpn
+          ```
+    
   4. That's it. Now the VPN will start at every boot. 
   
   5. Note that there is a short period between when the UDMP starts and when this script runs. This means there is a few seconds when the UDMP starts up when your forced clients **WILL** have access to your WAN and might leak their real IP, because the kill switch has not been activated yet. Read the question *How can I block Internet access until after this script runs at boot?* in the [FAQ below](#faq) to see how to solve this problem and block Internet access until after this script runs. 
@@ -896,6 +723,20 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
 </details>
 
 ## FAQ
+
+<details>
+    <summary>How do I check my clients are on the VPN?</summary>
+    
+ * On your client, check if you are seeing the VPN IPs when you visit http://whatismyip.host/. You can also test from command line, by running the following commands from your clients. Make sure you are not seeing your real IP anywhere, either IPv4 or IPv6.
+      ```sh
+      curl -4 ifconfig.co
+      curl -6 ifconfig.co
+      ```
+      If you are seeing your real IPv6 address above, make sure that you are forcing your client through IPv6 as well as IPv4, by forcing through interface, MAC address, or the IPv6 directly. If IPv6 is not supported by your VPN provider, the IPv6 check will time out and not return anything. You should never see your real IPv6 address. 
+* Check for DNS leaks with the Extended Test on https://www.dnsleaktest.com/. If you see a DNS leak, try redirecting DNS with the `DNS_IPV4_IP` and `DNS_IPV6_IP` options, or set `DNS_IPV6_IP="REJECT"` if your VPN provider does not support IPv6. 
+* Check for WebRTC leaks in your browser by visiting https://browserleaks.com/webrtc. If WebRTC is leaking your IPv6 IP, you need to disable WebRTC in your browser (if possible), or disable IPv6 completely by disabling it directly on your client or through the UDMP network settings for the client's VLAN.
+    
+</details>
 
 <details>  
   <summary>Can I route clients to different VPN servers?</summary>
@@ -938,10 +779,10 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
   * You can add your network subnets to a kernel ipset, and force/exempt that ipset via the `FORCED_IPSETS` or `EXEMPT_IPSETS` option in `vpn.conf`. Kernel ipsets are very efficient and can support up to 65536 elements each.
   * Here is an example on how to use ipsets with this script. 
 	
-    1. Create a file under `/mnt/data/split-vpn/ipsets/networklist.txt` and add the networks to it. Here we will use vim to create and edit the file.
+    1. Create a file under `/etc/split-vpn/ipsets/networklist.txt` and add the networks to it. Here we will use vim to create and edit the file.
         ```sh
-        mkdir -p /mnt/data/split-vpn/ipsets
-        cd /mnt/data/split-vpn/ipsets
+        mkdir -p /etc/split-vpn/ipsets
+        cd /etc/split-vpn/ipsets
         vim networklist.txt
         ```
         * Press `i` to start editing in vim, and put your network entries one on each line. You can also right click -> paste to paste many entries. Press `ESC` when done to exit insert mode, and type `:wq` to save and exit.
@@ -953,7 +794,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
         ./add-network-ipset.sh
         ```
         * This script will create an ipset called VPN_LIST (as well as VPN_LIST4 and VPN_LIST6, the IPv4 and IPv6 parts of the list). You can change this name by modifying the `IPSET_NAME` variable at the top of the script. 
-        * The script uses `/mnt/data/split-vpn/ipsets/networklist.txt` as the location of the list file. You can change that by modifying the `LIST_FILE` variable in the script.
+        * The script uses `/etc/split-vpn/ipsets/networklist.txt` as the location of the list file. You can change that by modifying the `LIST_FILE` variable in the script.
 	
     3. Check that the ipset was created and the subnets were added using the ipset utility.
         ```sh
@@ -974,7 +815,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
       5. If you are using a boot script to start the VPN at boot, make sure to run the `add-network-ipset.sh` script before running the split-vpn script by adding the following line to the top of your boot script. If you do not run the ipset creation script first, the VPN script will error because the configured ipset was not found.
   
           ```sh
-          /mnt/data/split-vpn/ipsets/add-network-ipset.sh
+          /etc/split-vpn/ipsets/add-network-ipset.sh
           ```
 	
 </details>	
@@ -1017,7 +858,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
     * **WireGuard (kernel module):** Change to the directory of your vpn.conf configuration and run the wg-quick down command.
   
       ```sh
-      cd /mnt/data/split-vpn/wireguard/mullvad
+      cd /etc/split-vpn/wireguard/mullvad
       wg-quick down ./wg0.conf
       ```
   
@@ -1026,7 +867,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
       ```sh
       cd /mnt/data/wireguard
       podman stop wireguard
-      /mnt/data/split-vpn/vpn/updown.sh wg0 down
+      /etc/split-vpn/vpn/updown.sh wg0 down
       ```
   
     * **OpenConnect:** Send the openconnect process the TERM signal to bring it down.
@@ -1052,8 +893,8 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
     * **Nexthop:** Change to the directory of your vpn.conf configuration and run the split-vpn down command. Make sure to use the correct nickname and interface.
   
       ```sh
-      cd /mnt/data/split-vpn/nexthop/mycomputer
-      /mnt/data/split-vpn/vpn/updown.sh br0 down mycomputer
+      cd /etc/split-vpn/nexthop/mycomputer
+      /etc/split-vpn/vpn/updown.sh br0 down mycomputer
       ```
   
 </details>
@@ -1068,8 +909,8 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
     * If you want to delete the kill switch so your forced clients can access your normal Internet again, change to the directory with the vpn.conf file and run the following command (replace tun0 with the device you defined in the config file). This command applies to all VPN types.
     
         ```sh
-        cd /mnt/data/split-vpn/openvpn/nordvpn
-        /mnt/data/split-vpn/vpn/updown.sh tun0 force-down
+        cd /etc/split-vpn/openvpn/nordvpn
+        /etc/split-vpn/vpn/updown.sh tun0 force-down
         ```
         
     * If you added blackhole routes and deleted the kill switch in the previous step, make sure to disable the blackhole routes in the Unifi Settings or you might suddenly lose Internet access when the blackhole routes are re-added by the system.
@@ -1158,7 +999,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
 <details>  
   <summary>Does this script work with Layer 3 switches?</summary>
 
-  * Yes, but not all options are compatible on networks with L3 switches. Specifically, any option matching on a client's MAC address or interface will not work for networks where the L3 switch is assiged as the gateway. This is because when a L3 switch, rather that the UDM, is configured as the Gateway for a Network, the switch acts as a router and overrides the MAC address of packets sent to the UDMP. This means the packets that arrive on the UDMP have the switch's MAC address and come through the special inter-VLAN interface instead of the regular brX VLAN interfaces. 
+  * Yes, but not all options are compatible on networks with L3 switches. Specifically, any option matching on a client's MAC address or interface will not work for networks where the L3 switch is assigned as the gateway. This is because when a L3 switch, rather that the UDM, is configured as the Gateway for a Network, the switch acts as a router and overrides the MAC address of packets sent to the router. This means the packets that arrive on the UDMP have the switch's MAC address and come through the special inter-VLAN interface instead of the regular brX VLAN interfaces. 
   
   * Instead, try to match on the IP of the client instead of the MAC or interface if you are using a L3 switch as a gateway. 
   

@@ -76,12 +76,16 @@ get_gateway() {
 # netmask_to_cidr [mask]
 # Convert the netmask @mask to CIDR notation.
 netmask_to_cidr() {
-    num_bits=0
-    for octet in $(echo $1 | sed 's/\./ /g'); do 
-         num_binary_bits=$(echo "ibase=10; obase=2; ${octet}"| bc | sed 's/0//g') 
-         num_bits=$(expr $num_bits + ${#num_binary_bits})
-    done
-    echo "${num_bits}"
+	num_bits=0
+	for octet in $(echo $1 | sed 's/\./ /g'); do
+		if [ -x "$(command -v bc)" ]; then	
+			num_binary_bits=$(echo "ibase=10; obase=2; ${octet}"| bc | sed 's/0//g')
+		elif [ -x "$(command -v bash)" ]; then
+			num_binary_bits=$(bash -c 'D2B=({0..1}{0..1}{0..1}{0..1}{0..1}{0..1}{0..1}{0..1}); echo ${D2B['"${octet}"']}' | sed 's/0//g')
+		fi
+		num_bits=$(expr $num_bits + ${#num_binary_bits})
+	done
+	echo "${num_bits}"
 }
 
 # Add the VPN routes to the custom table for OpenVPN provider.
@@ -114,6 +118,10 @@ add_openvpn_routes() {
 			break
 		fi
 		cidr=$(netmask_to_cidr $route_netmask_i)
+		if [ -z "${cidr}" -o "$cidr" = "0" ]; then
+			echo "split-vpn: Could not calculate CIDR for ${route_network_i}/${route_netmask_i}. Assuming 32."
+			cidr=32
+		fi
 		if [ -n "${route_gateway_i}" ]; then
 			ip route replace ${route_network_i}/${cidr} via ${route_gateway_i} dev ${dev} table ${ROUTE_TABLE}
 		else

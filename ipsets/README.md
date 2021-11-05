@@ -8,11 +8,13 @@ These instructions assume you have already installed the VPN script according to
 
 ## How to configure dnsmasq or pihole
 
-1. Download the ipset script into `/mnt/data/split-vpn/ipsets`.
+1. Download the ipset script into `/etc/split-vpn/ipsets`.
 	```sh
-	cd /mnt/data/split-vpn
-	mkdir ipsets
-	curl -L https://github.com/peacey/split-vpn/archive/main.zip | unzip - "*/ipsets/*" -o -j -d ipsets && chmod +x ipsets/*.sh
+	cd /etc/split-vpn
+	curl -Lo split-vpn.zip https://github.com/peacey/split-vpn/archive/main.zip
+	unzip -qo split-vpn.zip
+	cp -rf split-vpn-main/ipsets ./ && rm -rf split-vpn-main split-vpn.zip
+	chmod +x ipsets/*.sh
 	```
 2. Copy the sample ipset config file. 
 	```sh
