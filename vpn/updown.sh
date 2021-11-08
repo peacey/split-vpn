@@ -205,6 +205,17 @@ set_vpn_endpoint() {
 			fi
 		fi
 	fi
+	if [ "${VPN_PROVIDER}" = "external" ]; then
+		# If wireguard, get endpoint from wireguard interface
+		wg_endpoint=$(wg show "${tun}" endpoints 2>/dev/null | sed -En s/"^.*\s+\[?([0-9a-fA-F\.:]+)\]?:(.*)$"/"\1"/p | head -n1)
+		if $(echo "${wg_endpoint}" | grep -q ':'); then
+			VPN_ENDPOINT_IPV6="${wg_endpoint}"
+			VPN_ENDPOINT_IPV4=""
+		elif $(echo "${wg_endpoint}" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"); then
+			VPN_ENDPOINT_IPV4="${wg_endpoint}"
+			VPN_ENDPOINT_IPV6=""
+		fi
+	fi
 	if [ -z "${VPN_ENDPOINT_IPV4}" -a -z "${VPN_ENDPOINT_IPV6}" ]; then
 		echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: WARNING: No VPN endpoint found. If your VPN provider is external (wireguard) or nexthop, please set VPN_ENDPOINT_IPV4 or VPN_ENDPOINT_IPV6 to the VPN's IP in your vpn.conf and restart the VPN."
 	fi
