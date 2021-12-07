@@ -7,6 +7,8 @@ After=network-online.target
 Type=forking
 ExecStartPre=sh -c 'VPN_DIR="$(find /mnt/data/split-vpn /data/split-vpn -maxdepth 1 -type d -name "split-vpn" 2>/dev/null | head -n1)"; rm -f /etc/split-vpn; ln -sf "$VPN_DIR" /etc/split-vpn'
 ExecStart=/etc/split-vpn/run-vpn.sh
+Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target

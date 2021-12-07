@@ -167,12 +167,14 @@ add_gateway_routes() {
 		if [ "${gateway_ipv4}" != "${gateway_ipv4_old}" ]; then
 			echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: Using IPv4 gateway from table ${current_table}: ${gateway_ipv4}."
 			ip route replace ${VPN_ENDPOINT_IPV4} ${gateway_ipv4} table ${ROUTE_TABLE} || true
+			ip route replace ${VPN_ENDPOINT_IPV4} ${gateway_ipv4} || true
 		fi
 	fi
 	if [ -n "${VPN_ENDPOINT_IPV6}" -a -n "${gateway_ipv6}" ]; then
 		if [ "${gateway_ipv6}" != "${gateway_ipv6_old}" ]; then
 			echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: Using IPv6 gateway from table ${current_table}: ${gateway_ipv6}."
 			ip -6 route replace ${VPN_ENDPOINT_IPV6} ${gateway_ipv6} table ${ROUTE_TABLE} || true
+			ip -6 route replace ${VPN_ENDPOINT_IPV6} ${gateway_ipv6} || true
 		fi
 	fi
 }
@@ -233,9 +235,11 @@ delete_vpn_routes() {
 delete_gateway_routes() {
 	if [ -n "${VPN_ENDPOINT_IPV4}" ]; then
 		ip route del "${VPN_ENDPOINT_IPV4}" table ${ROUTE_TABLE} >/dev/null 2>&1 || true
+		ip route del "${VPN_ENDPOINT_IPV4}" >/dev/null 2>&1 || true
 	fi
 	if [ -n "${VPN_ENDPOINT_IPV6}" ]; then
 		ip -6 route del "${VPN_ENDPOINT_IPV6}" table ${ROUTE_TABLE} >/dev/null 2>&1 || true
+		ip -6 route del "${VPN_ENDPOINT_IPV6}" >/dev/null 2>&1 || true
 	fi
 }
 
@@ -322,6 +326,7 @@ set_vpn_endpoint
 # regardless of KILLSWITCH settings.
 if [ "$state" = "force-down" ]; then
 	kill_rule_watcher
+	delete_gateway_routes
 	delete_all_routes
 	sh ${iptables_script} force-down $tun
 	echo "Forced $tun down. Deleted killswitch and rules."

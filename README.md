@@ -715,6 +715,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
           curl -o /etc/systemd/system/run-vpn.service https://raw.githubusercontent.com/peacey/split-vpn/main/examples/boot/run-vpn.service
           systemctl daemon-reload && systemctl enable run-vpn
           ```
+          * Note the default systemd service is set to restart automatically on failure. If you do not want this behaivour, modify `/etc/systemd/system/run-vpn.service` and remove the `Restart=...` line.
     
   4. That's it. Now the VPN will start at every boot. 
   
