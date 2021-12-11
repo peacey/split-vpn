@@ -269,10 +269,10 @@ add_iptables_rules() {
 
 	# Exempt IPv4/IPv6 destinations from VPN
 	for dest in ${EXEMPT_DESTINATIONS_IPV4}; do
-		add_rule IPV4 mangle "PREROUTING ! -i ${dev} -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		add_rule IPV4 mangle "PREROUTING -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 	done
 	for dest in ${EXEMPT_DESTINATIONS_IPV6}; do
-		add_rule IPV6 mangle "PREROUTING ! -i ${dev} -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+		add_rule IPV6 mangle "PREROUTING -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 	done
 
 	(IFS="
@@ -307,20 +307,20 @@ add_iptables_rules() {
 			enable_masq_ipv4=0
 			break
 		fi
-		add_rule IPV4 nat "POSTROUTING -o ${dev} -s ${src} -j ACCEPT"
+		add_rule IPV4 nat "POSTROUTING -o ${dev} -s ${src} -m mark --mark ${MARK} -j ACCEPT"
 	done
 	for src in ${BYPASS_MASQUERADE_IPV6}; do
 		if [ "$src" = "ALL" ]; then
 			enable_masq_ipv6=0
 			break
 		fi
-		add_rule IPV6 nat "POSTROUTING -o ${dev} -s ${src} -j ACCEPT"
+		add_rule IPV6 nat "POSTROUTING -o ${dev} -s ${src} -m mark --mark ${MARK} -j ACCEPT"
 	done
 	if [ "$enable_masq_ipv4" = "1" ]; then
-		add_rule IPV4 nat "POSTROUTING -o ${dev} -j MASQUERADE"
+		add_rule IPV4 nat "POSTROUTING -o ${dev} -m mark --mark ${MARK} -j MASQUERADE"
 	fi
 	if [ "$enable_masq_ipv6" = "1" ]; then
-		add_rule IPV6 nat "POSTROUTING -o ${dev} -j MASQUERADE"
+		add_rule IPV6 nat "POSTROUTING -o ${dev} -m mark --mark ${MARK} -j MASQUERADE"
 	fi
 
 	# Force DNS from environment variables or REJECT VPN DNS traffic.

@@ -4,7 +4,7 @@
 
 # Force these sources through the VPN.
 # Format: [brX] for interface. [IP/nn] for IP. [xx:xx:xx:xx:xx:xx] for mac.
-FORCED_SOURCE_INTERFACE="br6"
+FORCED_SOURCE_INTERFACE=""
 FORCED_SOURCE_IPV4=""
 FORCED_SOURCE_IPV6=""
 FORCED_SOURCE_MAC=""
