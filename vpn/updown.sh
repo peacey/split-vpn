@@ -134,7 +134,7 @@ add_openvpn_routes() {
 		if [ -z "${route_ipv6_network_i}" ]; then
 			break
 		fi
-		if [ -n "${route_ipv6_gateway_i}" ]; then
+		if [ -n "${route_ipv6_gateway_i}" -a "${route_ipv6_gateway_i}" != "::" ]; then
 			ip -6 route replace ${route_ipv6_network_i} via ${route_ipv6_gateway_i} dev ${dev} table ${ROUTE_TABLE}
 		else
 			ip -6 route replace ${route_ipv6_network_i} dev ${dev} table ${ROUTE_TABLE}
