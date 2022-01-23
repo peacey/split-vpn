@@ -233,6 +233,9 @@ delete_vpn_routes() {
 
 # Delete the gateway routes
 delete_gateway_routes() {
+	if [ "${GATEWAY_TABLE}" = "disabled" ]; then
+		return
+	fi
 	if [ -n "${VPN_ENDPOINT_IPV4}" ]; then
 		ip route del "${VPN_ENDPOINT_IPV4}" table ${ROUTE_TABLE} >/dev/null 2>&1 || true
 		ip route del "${VPN_ENDPOINT_IPV4}" >/dev/null 2>&1 || true
