@@ -7,10 +7,15 @@ set -e
 
 ### Functions ###
 
+# Helper function to log with prefix
+logf() {
+	echo "[$(date)] split-vpn: $@"
+}
+
 # Helper function to check if a function is defined
 fn_exists() {
-        type $1 2>/dev/null | head -n1 | grep -q function
-        [ $? = 0 ]
+	type $1 2>/dev/null | head -n1 | grep -q function
+	[ $? = 0 ]
 }
 
 # Kill the rule watcher (previously running up/down script for the tunnel device).
@@ -33,20 +38,23 @@ run_rule_watcher() {
 	kill_rule_watcher
 	(while :; do
 		ip rule show fwmark ${MARK} | grep ${MARK} >/dev/null 2>&1 || 
-			(ip rule add $ip_rule && echo "[$(date)] Readded IPv4 rule.")
+			(ip rule add $ip_rule && echo "Readded IPv4 rule.")
 		ip -6 rule show fwmark ${MARK} | grep ${MARK} >/dev/null 2>&1 || 
-			(ip -6 rule add $ip_rule && echo "[$(date)] Readded IPv6 rule.")
+			(ip -6 rule add $ip_rule && echo "Readded IPv6 rule.")
 		if [ "${REMOVE_STARTUP_BLACKHOLES}" = 1 ]; then
 			for route in ${startup_blackholes}; do
 				ip route del blackhole "$route" >/dev/null 2>&1 &&
-					echo "[$(date)] Removed blackhole ${route}."
+					echo "Removed blackhole ${route}."
 			done
 		fi
 		if [ "${GATEWAY_TABLE}" = "auto" ]; then
-			add_gateway_routes
+			add_gateway_routes || true
+		fi
+		if [ "${VPN_PROVIDER}" = "nexthop" ]; then
+			add_nexthop_routes || true
 		fi
  		sleep ${WATCHER_TIMER}
-	done) > rule-watcher.log &
+	done) 2>&1 | (while read -r LINE; do logf "${LINE}"; done) > rule-watcher.log &
 }
 
 # Get the gateway from the UDM/P custom WAN table..
@@ -100,7 +108,7 @@ add_openvpn_routes() {
 			ip route replace 0.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
 			ip route replace 128.0.0.0/1 via ${route_vpn_gateway} dev ${dev} table ${ROUTE_TABLE}
 		else
-			echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: WARNING: OpenVPN did not pass the VPN gateway so connection might not work. Please pass the option '--redirect-gateway def1' to the openvpn command when you run it, or manually set route_vpn_gateway in your vpn.conf."
+			logf "WARNING: OpenVPN did not pass the VPN gateway so connection might not work. Please pass the option '--redirect-gateway def1' to the openvpn command when you run it, or manually set route_vpn_gateway in your vpn.conf."
 			ip route replace 0.0.0.0/1 dev ${dev} table ${ROUTE_TABLE}
 			ip route replace 128.0.0.0/1 dev ${dev} table ${ROUTE_TABLE}
 		fi
@@ -119,7 +127,7 @@ add_openvpn_routes() {
 		fi
 		cidr=$(netmask_to_cidr $route_netmask_i)
 		if [ -z "${cidr}" -o "$cidr" = "0" ]; then
-			echo "split-vpn: Could not calculate CIDR for ${route_network_i}/${route_netmask_i}. Assuming 32."
+			logf "Could not calculate CIDR for ${route_network_i}/${route_netmask_i}. Assuming 32."
 			cidr=32
 		fi
 		if [ -n "${route_gateway_i}" ]; then
@@ -143,9 +151,6 @@ add_openvpn_routes() {
 }
 
 add_nexthop_routes() {
-	# Flush route table first
-	delete_vpn_routes
-
 	# Add nexthop routes to route table
 	if [ -n "${VPN_ENDPOINT_IPV4}" ]; then
 		ip route replace 0.0.0.0/1 via ${VPN_ENDPOINT_IPV4} dev ${tun} table ${ROUTE_TABLE}
@@ -165,14 +170,14 @@ add_gateway_routes() {
 	get_gateway
 	if [ -n "${VPN_ENDPOINT_IPV4}" -a -n "${gateway_ipv4}" ]; then
 		if [ "${gateway_ipv4}" != "${gateway_ipv4_old}" ]; then
-			echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: Using IPv4 gateway from table ${current_table}: ${gateway_ipv4}."
+			logf "Using IPv4 gateway from table ${current_table}: ${gateway_ipv4}."
 			ip route replace ${VPN_ENDPOINT_IPV4} ${gateway_ipv4} table ${ROUTE_TABLE} || true
 			ip route replace ${VPN_ENDPOINT_IPV4} ${gateway_ipv4} || true
 		fi
 	fi
 	if [ -n "${VPN_ENDPOINT_IPV6}" -a -n "${gateway_ipv6}" ]; then
 		if [ "${gateway_ipv6}" != "${gateway_ipv6_old}" ]; then
-			echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: Using IPv6 gateway from table ${current_table}: ${gateway_ipv6}."
+			logf "Using IPv6 gateway from table ${current_table}: ${gateway_ipv6}."
 			ip -6 route replace ${VPN_ENDPOINT_IPV6} ${gateway_ipv6} table ${ROUTE_TABLE} || true
 			ip -6 route replace ${VPN_ENDPOINT_IPV6} ${gateway_ipv6} || true
 		fi
@@ -219,7 +224,7 @@ set_vpn_endpoint() {
 		fi
 	fi
 	if [ -z "${VPN_ENDPOINT_IPV4}" -a -z "${VPN_ENDPOINT_IPV6}" ]; then
-		echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn: WARNING: No VPN endpoint found. If your VPN provider is external (wireguard) or nexthop, please set VPN_ENDPOINT_IPV4 or VPN_ENDPOINT_IPV6 to the VPN's IP in your vpn.conf and restart the VPN."
+		logf "WARNING: No VPN endpoint found. If your VPN provider is external (wireguard) or nexthop, please set VPN_ENDPOINT_IPV4 or VPN_ENDPOINT_IPV6 to the VPN's IP in your vpn.conf and restart the VPN."
 	fi
 }
 
@@ -319,7 +324,7 @@ gateway_ipv6=undefined
 
 # Print the config being using
 if [ -n "$CONFIG_FILE" ]; then
-	echo "$(date +'%a %b %d %H:%M:%S %Y') split-vpn ${state}: Loading configuration from ${CONFIG_FILE}."
+	logf "${tun} ${state}: Loading configuration from ${CONFIG_FILE}."
 fi
 
 set_vpn_endpoint
@@ -332,7 +337,7 @@ if [ "$state" = "force-down" ]; then
 	delete_gateway_routes
 	delete_all_routes
 	sh ${iptables_script} force-down $tun
-	echo "Forced $tun down. Deleted killswitch and rules."
+	logf "Forced ${tun} down. Deleted killswitch and rules."
 	if fn_exists hooks_force_down; then
 		hooks_force_down
 	fi
@@ -349,6 +354,7 @@ elif [ "$state" = "up" ]; then
 		add_openvpn_routes
 	fi
 	if [ "${VPN_PROVIDER}" = "nexthop" ]; then
+		delete_vpn_routes
 		add_nexthop_routes
 	fi
 	add_gateway_routes
