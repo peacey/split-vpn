@@ -1509,7 +1509,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
       If you are running multiple openvpn clients, this needs to be unique for each client.
   
       Format: [Hex number]
-      Example: MARK=0x9
+      Example: MARK=0x97
 
   </details>
   
