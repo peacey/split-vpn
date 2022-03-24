@@ -1031,7 +1031,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
         ip -6 route show table 101
         ```
 
-    2. Adds policy-based routes to redirect marked traffic to the custom tables. You can see them with the following command (look for the fwmark you defined in your config or 0x9 if using default).
+    2. Adds policy-based routes to redirect marked traffic to the custom tables. You can see them with the following command (look for the fwmark you defined in your config or 0x696af100 if using default).
 
         ```sh
         ip rule
@@ -1509,7 +1509,7 @@ Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Scrip
       If you are running multiple openvpn clients, this needs to be unique for each client.
   
       Format: [Hex number]
-      Example: MARK=0x9
+      Example: MARK=0x696af100
 
   </details>
   
