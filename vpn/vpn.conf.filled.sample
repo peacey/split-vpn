@@ -148,7 +148,7 @@ WATCHER_TIMER=1
 # Options for custom table and chains.
 # These options need to be unique for each instance of openvpn if running multiple.
 ROUTE_TABLE=101
-MARK=0x696af100
+MARK=0x169
 PREFIX="VPN_"
 PREF=99
 DEV=tun0
