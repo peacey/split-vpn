@@ -725,6 +725,24 @@ NOTE: UXG-Pro does not currently support any boot script functionality.
 
 </details>
 
+## Uninstallation Instructions
+	
+First, if you are running any split-vpn configurations, make sure to bring down the VPN before uninstalling. Alternatively, you can just restart after uninstalling.
+  
+**Option 1.** To uninstall everything including the script and configurations, simply run the following to remove the split-vpn directory in `/mnt/data` or `/data` and your boot scripts if using any.
+  
+```sh
+rm -rf /mnt/data/split-vpn /data/split-vpn /etc/split-vpn
+rm -rf /mnt/data/on_boot.d/99-run-vpn.sh /etc/systemd/system/run-vpn.service
+```
+  
+**Option 2.** To uninstall only the scripts but keep the configurations in case you want to re-install in the future, run the following to delete only the `split-vpn/vpn` directory and boot scripts. Configuration files will be kept in your `split-vpn` directory. 
+  
+```sh
+rm -rf /mnt/data/split-vpn/vpn /data/split-vpn/vpn /etc/split-vpn
+rm -rf /mnt/data/on_boot.d/99-run-vpn.sh /etc/systemd/system/run-vpn.service
+```
+    
 ## FAQ
 
 <details>
