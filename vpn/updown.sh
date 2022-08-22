@@ -125,6 +125,9 @@ add_openvpn_routes() {
 		if [ -z "${route_network_i}" ]; then
 			break
 		fi
+		if [ "${route_netmask_i}" = "0.0.0.0" ]; then
+			continue
+		fi
 		cidr=$(netmask_to_cidr $route_netmask_i)
 		if [ -z "${cidr}" -o "$cidr" = "0" ]; then
 			logf "Could not calculate CIDR for ${route_network_i}/${route_netmask_i}. Assuming 32."
