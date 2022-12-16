@@ -7,7 +7,7 @@ This is a helper script for multiple VPN clients on Unifi routers that creates a
 
 ## Features
 
-* Works with UDM-Pro, UDM base, UDM-SE, UDR, and UXG-Pro.
+* Works with UDM-Pro, UDM, UDM-SE, UDR, and UXG-Pro.
 * Force traffic to the VPN based on source interface (VLAN), MAC address, IP address, or IP sets.
 * Exempt sources from the VPN based on IP, MAC address, IP:port, MAC:port combinations, or IP sets. This allows you to force whole VLANs through by interface, but then selectively choose clients from that VLAN, or specific services on forced clients, to exclude from the VPN.
 * Exempt destinations from the VPN by IP. This allows VPN-forced clients to communicate with the LAN or other VLANs.
@@ -23,7 +23,7 @@ This is a helper script for multiple VPN clients on Unifi routers that creates a
 
 ## Compatibility
 
-This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-Pro. It has been tested on Unifi OS 1.8 to 1.12, and 2.2 to 2.4, however other versions should work. Please submit a bug report if you use this on a different version and encounter issues.
+This script is designed to be run on the UDM-Pro, UDM, UDM-SE, UDR, or UXG-Pro. It has been tested on Unifi OS 1.8 to 1.12, and 2.2 to 2.4, however other versions should work. Please submit a bug report if you use this on a different version and encounter issues.
 
 ## Installation Instructions
 
@@ -39,8 +39,8 @@ This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-
     curl -LSsf https://raw.githubusercontent.com/peacey/split-vpn/main/vpn/install-split-vpn.sh | sh
     ```
 
-	* For the UDM, UDM Pro, UDM-SE, and UXG Pro, the script will be installed to `/mnt/data/split-vpn`.
-	* For the UDR, the script will be installed to `/data/split-vpn`.
+	* If using UnifiOS 1.x, this script will be installed to `/mnt/data/split-vpn`.
+	* If using UnifiOS 2.x/3.x, this script will be installed to `/data/split-vpn`.
 	* The installation will also link the script directory to `/etc/split-vpn`, which will be used for configuration below.
 
 3. Follow the instructions below to set-up the script.
@@ -49,7 +49,7 @@ This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-
 
 * Make sure you first installed split-vpn with the instructions outlined above.
 * Make sure split-vpn is linked to `/etc/split-vpn` before proceeding. This is done automatically at install, but needs to be done every reboot. Boot scripts included below automatically set up this link at boot.
-	* If you are not using a boot script, you can run `/mnt/data/split-vpn/vpn/setup-split-vpn.sh` on the UDM/UXG (or `/data/split-vpn/vpn/setup-split-vpn.sh` if using a UDR) to re-create the link.
+	* If you are not using a boot script, you can re-create the link by running `/mnt/data/split-vpn/vpn/setup-split-vpn.sh` if using UnifiOS 1.x or `/data/split-vpn/vpn/setup-split-vpn.sh` if using UnifiOS 2.x.
 
 <details>
   <summary>Click here to see the instructions for OpenVPN.</summary>
@@ -122,12 +122,10 @@ This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-
 <details>
   <summary>Click here to see the instructions for WireGuard (kernel module).</summary>
 
-  * **PREREQUISITE:** Make sure the WireGuard kernel module is installed via either [wireguard-kmod](https://github.com/tusc/wireguard-kmod) or a [custom kernel](https://github.com/fabianishere/udm-kernel-tools). The WireGuard tools (wg-quick, wg) also need to be installed (included with wireguard-kmod) and accessible from your PATH.
-  * Make sure you run the wireguard setup script from [wireguard-kmod](https://github.com/tusc/wireguard-kmod) once.
+  * **PREREQUISITE:** This method requires the WireGuard kernel module and tools. The module and tools are included by Uiquiti in UnifiOS 2.x and up, but for UnifiOS 1.x, you will have to install the module and tools first via either the [wireguard-kmod](https://github.com/tusc/wireguard-kmod) project or a [custom kernel](https://github.com/fabianishere/udm-kernel-tools).
+  * If using wireguard-kmod, make sure you run the wireguard setup script from [wireguard-kmod](https://github.com/tusc/wireguard-kmod) once before starting these instructions.
   * Before continuing, test the installation of the module by running `modprobe wireguard` which should return nothing and no errors, and running `wg-quick` which should return the help and no errors.
-    * After you load the module, run `ip link add dev wg0 type wireguard` to test if you can add a wireguard interface successfully. If your router locks up and restarts when you do this, then the module is not compatible with your kernel. Check the [wireguard-kmod](https://github.com/tusc/wireguard-kmod) github or your custom kernel for more information.
-    * If adding the interface succeeded, type `ip link del wg0` to delete the wireguard interface before continuing with the steps below.
-
+	
 1. Create a directory for your WireGuard configuration files, copy the sample vpn.conf from `/etc/split-vpn/vpn/vpn.conf.sample`, and copy your WireGuard configuration file (wg0.conf) or create it. As an example below, we are creating the wg0.conf file that mullvad provides and pasting the contents into it. You can use any name for your config instead of wg0 (e.g.: mullvad-ca2.conf) and this will be the interface name of the wireguard tunnel.
 
     ```sh
@@ -171,11 +169,10 @@ This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-
 4. Run wg-quick to start wireguard with your configuration and test if the connection worked. Replace wg0 with your interface name if different.
 
     ```sh
-    /mnt/data/wireguard/setup_wireguard.sh
     wg-quick up ./wg0.conf
     ```
 
-    * You can skip the first line if you already setup the wireguard kernel module previously as instructed at [wireguard-kmod](https://github.com/tusc/wireguard-kmod). Note for the UDR the setup script is under `/data`, so run `/data/wireguard/setup_wireguard.sh` instead.
+    * If you are on using the wireguard-kmod project, make sure you ran the wireguard setup script first (`/mnt/data/wireguard/setup_wireguard.sh` or `/data/wireguard/setup_wireguard.sh`) as instructed at [wireguard-kmod](https://github.com/tusc/wireguard-kmod).
     * Type `wg` to check your WireGuard connection and make sure you received a handshake. No handshake indicates something is wrong with your wireguard configuration. Double check your configuration's Private and Public key and other variables.
     * If you need to bring down the WireGuard tunnel, run `wg-quick down ./wg0.conf` in this folder (replace wg0.conf with your interface configuration if different).
     * Note that wg-quick up/down commands need to be run from this folder so the script can pick up the correct configuration file.
@@ -187,9 +184,6 @@ This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-
     ```sh
     #!/bin/sh
 
-    # Set up the wireguard kernel module and tools
-    /mnt/data/wireguard/setup_wireguard.sh
-
     # Load configuration and run wireguard
     cd /etc/split-vpn/wireguard/mullvad
     . ./vpn.conf
@@ -198,10 +192,10 @@ This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-
     cat wireguard.log
     ```
 
-	* For the UDR only, change the setup_wireguard.sh line to the correct data directory: `/data/wireguard/setup_wireguard.sh`.
-  * Modify the `cd` line to point to the correct directory. Make sure that the `DEV` variable in the `vpn.conf` file is set to the wireguard interface name (which should the same as the wireguard configuration filename without .conf).
-  * **Optional**: If you want to block Internet access to forced clients if the wireguard tunnel is brought down via wg-quick, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file.
-  * **Optional**: Uncomment the pre-up line by removing the `# ` at the beginning of the line if you want to block Internet access for forced clients if wireguard fails to run. Keeping it commented out doesn't enable the iptables kill switch until after wireguard runs successfully.
+	* If you are using the wireguard-kmod project, add `/mnt/data/wireguard/setup_wireguard.sh` or `/data/wireguard/setup_wireguard.sh` (whichever your data directory is) to the top of this script before the "# Load configuration" line to make sure wireguard is setup first.
+  	* Modify the `cd` line to point to the correct directory. Make sure that the `DEV` variable in the `vpn.conf` file is set to the wireguard interface name (which should the same as the wireguard configuration filename without .conf).
+  	* **Optional**: If you want to block Internet access to forced clients if the wireguard tunnel is brought down via wg-quick, set `KILLSWITCH=1` and `REMOVE_KILLSWITCH_ON_EXIT=0` in the `vpn.conf` file.
+  	* **Optional**: Uncomment the pre-up line by removing the `# ` at the beginning of the line if you want to block Internet access for forced clients if wireguard fails to run. Keeping it commented out doesn't enable the iptables kill switch until after wireguard runs successfully.
 
 7. Give the script executable permissions. You can run this script next time you want to start this wireguard configuration.
 
@@ -221,7 +215,7 @@ This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-
   <summary>Click here to see the instructions for wireguard-go (software implementation).</summary>
 
   * **PREREQUISITE:** Make sure the wireguard-go container is installed as instructed at the [wireguard-go repo](https://github.com/boostchicken/udm-utilities/tree/master/wireguard-go). After this step, you should have the wireguard directory (for example: `/mnt/data/wireguard`) and the run script `/mnt/data/on_boot.d/20-wireguard.sh` installed.
-    *   **NOTE:** This requires podman which comes pre-installed on the non-SE UDMs. For the UDM SE or UDR, you need to install podman first (instructions not included).
+    *   **NOTE:** This requires podman which comes pre-installed on UnifiOS 1.x. For UnifiOS 2.x and up, you need to install podman first (instructions not included).
   * The wireguard-go container only supports a single interface - wg0. This means you cannot connect to multiple wireguard servers. If you want to use multiple servers with this script, then use the WireGuard kernel module instead as explained above.
   * wireguard-go is a software implementation of WireGuard, and will have reduced performance compared to the kernel module.
 
@@ -351,7 +345,7 @@ This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-
 <details>
   <summary>Click here to see the instructions for OpenConnect (i.e. AnyConnect).</summary>
 
-  **NOTE:** This requires podman which comes pre-installed on the non-SE UDMs. For the UDM SE or UDR, you need to install podman first (instructions not included).
+  **NOTE:** This requires podman which comes pre-installed on UnifiOS 1.x. For UnifiOS 2.x and up, you need to install podman first (instructions not included).
 
 1. Create a directory for your OpenConnect configuration files under `/etc/split-vpn/openconnect`, copy the sample vpn.conf from `/etc/split-vpn/vpn/vpn.conf.sample`, and copy any certificates needed or other client files for your configuration. As an example below, we are going to connect a server that only uses a username/password, so no certificate is needed, but we have to create a password.txt file and put the password inside it.
 
@@ -432,7 +426,7 @@ This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-
 <details>
   <summary>Click here to see the instructions for StrongSwan (IKEv2, IPSec).</summary>
 
-  **NOTE:** This requires podman which comes pre-installed on the non-SE UDMs. For the UDM SE or UDR, you need to install podman first (instructions not included).
+  **NOTE:** This requires podman which comes pre-installed on UnifiOS 1.x. For UnifiOS 2.x and up, you need to install podman first (instructions not included).
 
 1. Create a directory for your StrongSwan configuration files under `/etc/split-vpn/strongswan`, copy the sample vpn.conf from `/etc/split-vpn/vpn/vpn.conf.sample`. In this example, we are making a folder for PureVPN.
 
@@ -676,10 +670,8 @@ This script is designed to be run on the UDM-Pro, UDM base, UDM-SE, UDR, or UXG-
 
 ## How do I run this at boot?
 
-Boot scripts on the UDM (non-SE) are supported via the [UDM Utilities Boot Script](https://github.com/boostchicken/udm-utilities/tree/master/on-boot-script). On the UDM SE and UDR, boot scripts are supported natively via systemd. The boot script survives across firmware upgrades and reboots.
-
-NOTE: UXG-Pro does not currently support any boot script functionality.
-
+Boot scripts on UnifiOS 1.x are supported via the [UDM Utilities Boot Script](https://github.com/boostchicken/udm-utilities/tree/master/on-boot-script). On UnifiOS 2.x and up, boot scripts are supported natively via systemd. The boot script survives across firmware upgrades and reboots.
+	
 <details>
   <summary>Click here to see the instructions for how to set up the boot script.</summary>
 
@@ -705,13 +697,13 @@ NOTE: UXG-Pro does not currently support any boot script functionality.
 
   3. Install the boot service for your device.
 
-      * For the UDM or UDM Pro, set-up UDM Utilities Boot Script by following the instructions [here](https://github.com/boostchicken/udm-utilities/blob/master/on-boot-script/README.md) first. Then install the boot script by running:
+      * For UnifiOS 1.x, set-up UDM Utilities Boot Script by following the instructions [here](https://github.com/boostchicken/udm-utilities/blob/master/on-boot-script/README.md) first. Then install the boot script by running:
           ```sh
           curl -o /mnt/data/on_boot.d/99-run-vpn.sh https://raw.githubusercontent.com/peacey/split-vpn/main/examples/boot/run-vpn.sh
           chmod +x /mnt/data/on_boot.d/99-run-vpn.sh
           ```
 
-      * For the UDM-SE or UDR, run the following commands to install a systemd boot service.
+      * For UnifiOS 2.x and up, run the following commands to install a systemd boot service.
 
           ```sh
           curl -o /etc/systemd/system/run-vpn.service https://raw.githubusercontent.com/peacey/split-vpn/main/examples/boot/run-vpn.service
