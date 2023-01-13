@@ -64,27 +64,34 @@ write_jobs_to_cronfile() {
 	# Combine commands with the same cron_time and write each
 	# one to the cron file.
 	(
-	IFS="
-	"
+	IFS="$(printf '\n')"
 	rm -f "$cron_file"
+    username=""
+    if [ $version -gt 1 ]; then
+        username="root "
+    fi
 	for cron_time in $(echo "$jobs_map" | jq -r 'keys[]'); do
 		commands=$(echo "$jobs_map" | 
 			jq -r '[
-					([.["'"${cron_time}"'"]["prefixes"][] | "ipset flush \(.)FORCED4; ipset flush \(.)FORCED6; ipset flush \(.)EXEMPT4; ipset flush \(.)EXEMPT6"] | join("; ")),
+					([.["'"${cron_time}"'"]["prefixes"][] | "'"${username}"'ipset flush \(.)FORCED4; ipset flush \(.)FORCED6; ipset flush \(.)EXEMPT4; ipset flush \(.)EXEMPT6"] | join("; ")),
 					(.["'"${cron_time}"'"]["commands"] | join("; "))
 					] | join("; ")
 					')
 		echo "${cron_time} ${commands}" >> "$cron_file"
 	done
-	echo "add-dnsmasq-ipsets: Saving cron jobs to $cron_file" 
-	/etc/init.d/crond reload "$cron_file"
+	echo "add-dnsmasq-ipsets: Saving cron jobs to $cron_file"
+
+    # UnifiOS 2 and up have cron running as a systemd service and watches the cron.d folder automatically
+    # Only need to reload cron for UnifiOS < 2
+    if [ $version -lt 2 ]; then
+	    /etc/init.d/crond reload "$cron_file"
+    fi
 	)
 }
 
 write_ipsets_to_config() {
 	(
-	IFS="
-	"
+	IFS="$(printf '\n')"
 	# Write ipsets config to config location
 	for config_location in $(echo "$ipsets_map" | jq -r 'keys[]'); do
 		config="${config_location}/ipsets.conf"
@@ -104,6 +111,10 @@ restart_commands="[]"
 ipsets_map="{}"
 jobs_map="{}"
 cron_file="/etc/cron.d/ipset_cleanup"
+version=$(ubnt-device-info firmware | sed -E s/"^([0-9]+)\..*$"/"\1"/g)
+if [ -z "$version" ]; then
+    version=1
+fi
 
 for conf in "$(dirname "$0")"/*.conf; do
 	echo "add-dnsmasq-ipsets: Loading configuration from ${conf}"

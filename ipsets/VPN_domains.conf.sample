@@ -30,7 +30,7 @@ RELOAD_COMMAND="killall -HUP dnsmasq"
 
 # Use these settings if you are using pihole on the UDM/P.
 # Pihole MUST be running in the host network for this to work.
-# Read https://... for more information.
+# Note, your DNSMASQ_CONFIG_FOLDER might be different depending on where you installed pihole.
 #DNSMASQ_CONFIG_FOLDER="/mnt/data/pihole/etc-dnsmasq.d"
 #RESTART_COMMAND="podman exec pihole pihole restartdns || podman restart pihole"
 #RELOAD_COMMAND="podman exec pihole pihole restartdns reload"

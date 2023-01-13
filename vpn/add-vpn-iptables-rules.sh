@@ -185,14 +185,15 @@ add_iptables_rules() {
 	# Force traffic through VPN for each ipset
 	add_ipset_rule force "${FORCED_IPSETS}"
 
-	(IFS="
-	"
+	(
+    IFS="$(printf '\n')"
 	for rule in ${CUSTOM_FORCED_RULES_IPV4}; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
  			IFS=' ' add_rule IPV4 mangle "PREROUTING $rule -j MARK --set-xmark ${MARK}"
 		fi
 	done
+    IFS="$(printf '\n')"
 	for rule in ${CUSTOM_FORCED_RULES_IPV6}; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
@@ -275,14 +276,14 @@ add_iptables_rules() {
 		add_rule IPV6 mangle "PREROUTING -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 	done
 
-	(IFS="
-	"
+	(IFS="$(printf '\n')"
 	for rule in ${CUSTOM_EXEMPT_RULES_IPV4}; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
  			IFS=' ' add_rule IPV4 mangle "PREROUTING $rule -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 		fi
 	done
+    IFS="$(printf '\n')"
 	for rule in ${CUSTOM_EXEMPT_RULES_IPV6}; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
