@@ -37,7 +37,7 @@ These instructions assume you have already installed the VPN script according to
 		* The bridge interface is `brX` for dnsmasq, or `brXpi` if you set up pihole in host mode according to the instructions [here](../pihole-host-mode/README.md). X is the VLAN number (e.g.: `br6` for the UDM address on VLAN 6, or `br5pi` for pihole).
 
 6. Restart the VPN client to apply the new configuration. 
-7. If you are using a boot script (`/mnt/data/on_boot.d/99-run-vpn.sh`), modify it and add the following lines before you load the configuration for your VPN.
+7. Modify your master run script (`/etc/split-vpn/run-vpn.sh`) and add the following lines before you load the configuration for your VPN.
 	```sh
 	# Add dnsmasq 
 	/etc/split-vpn/ipsets/add-dnsmasq-ipset.sh

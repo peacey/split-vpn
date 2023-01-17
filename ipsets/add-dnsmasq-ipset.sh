@@ -63,17 +63,15 @@ add_cron_job() {
 write_jobs_to_cronfile() {
 	# Combine commands with the same cron_time and write each
 	# one to the cron file.
-	(
-	IFS="$(printf '\n')"
 	rm -f "$cron_file"
     username=""
     if [ $version -gt 1 ]; then
         username="root "
     fi
-	for cron_time in $(echo "$jobs_map" | jq -r 'keys[]'); do
+	echo "$jobs_map" | jq -r 'keys[]' | while read -r cron_time; do
 		commands=$(echo "$jobs_map" | 
 			jq -r '[
-					([.["'"${cron_time}"'"]["prefixes"][] | "'"${username}"'ipset flush \(.)FORCED4; ipset flush \(.)FORCED6; ipset flush \(.)EXEMPT4; ipset flush \(.)EXEMPT6"] | join("; ")),
+					([.["'"${cron_time}"'"]["prefixes"][] | "'"${username}"'/sbin/ipset flush \(.)FORCED4; /sbin/ipset flush \(.)FORCED6; /sbin/ipset flush \(.)EXEMPT4; /sbin/ipset flush \(.)EXEMPT6"] | join("; ")),
 					(.["'"${cron_time}"'"]["commands"] | join("; "))
 					] | join("; ")
 					')
@@ -86,25 +84,21 @@ write_jobs_to_cronfile() {
     if [ $version -lt 2 ]; then
 	    /etc/init.d/crond reload "$cron_file"
     fi
-	)
 }
 
 write_ipsets_to_config() {
-	(
-	IFS="$(printf '\n')"
 	# Write ipsets config to config location
-	for config_location in $(echo "$ipsets_map" | jq -r 'keys[]'); do
+	echo "$ipsets_map" | jq -r 'keys[]' | while read -r config_location; do
 		config="${config_location}/ipsets.conf"
 		echo "add-dnsmasq-ipsets: Saving dnsmasq config to ${config}"
 		echo "$ipsets_map" | jq -r '.["'"$config_location"'"] | keys[] as $k | "ipset=/\($k)/\(.[$k] | unique | join(","))"' > "$config"
 	done
 
 	# Restart dns server to apply new configuration
-	for comm in $(echo "$restart_commands" | jq -r '.[]'); do
+	echo "$restart_commands" | jq -r '.[]' | while read -r comm; do
 		echo "add-dnsmasq-ipsets: Running restart command: $comm"
 		eval "$comm" || true
 	done
-	)
 }
 
 restart_commands="[]"

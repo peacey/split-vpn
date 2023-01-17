@@ -185,22 +185,18 @@ add_iptables_rules() {
 	# Force traffic through VPN for each ipset
 	add_ipset_rule force "${FORCED_IPSETS}"
 
-	(
-    IFS="$(printf '\n')"
-	for rule in ${CUSTOM_FORCED_RULES_IPV4}; do
+	echo "${CUSTOM_FORCED_RULES_IPV4}" | while read -r rule; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
- 			IFS=' ' add_rule IPV4 mangle "PREROUTING $rule -j MARK --set-xmark ${MARK}"
+ 			add_rule IPV4 mangle "PREROUTING $rule -j MARK --set-xmark ${MARK}"
 		fi
 	done
-    IFS="$(printf '\n')"
-	for rule in ${CUSTOM_FORCED_RULES_IPV6}; do
+	echo "${CUSTOM_FORCED_RULES_IPV6}" | while read -r rule; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
- 			IFS=' ' add_rule IPV6 mangle "PREROUTING $rule -j MARK --set-xmark ${MARK}"
+ 			add_rule IPV6 mangle "PREROUTING $rule -j MARK --set-xmark ${MARK}"
 		fi
 	done
-	)
 
 	# Force traffic through VPN for local output interfaces
 	if [ "$state" != "pre-up" ]; then
@@ -276,21 +272,18 @@ add_iptables_rules() {
 		add_rule IPV6 mangle "PREROUTING -d ${dest} -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 	done
 
-	(IFS="$(printf '\n')"
-	for rule in ${CUSTOM_EXEMPT_RULES_IPV4}; do
+	echo "${CUSTOM_EXEMPT_RULES_IPV4}" | while read -r rule; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
- 			IFS=' ' add_rule IPV4 mangle "PREROUTING $rule -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+ 			add_rule IPV4 mangle "PREROUTING $rule -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 		fi
 	done
-    IFS="$(printf '\n')"
-	for rule in ${CUSTOM_EXEMPT_RULES_IPV6}; do
+	echo "${CUSTOM_EXEMPT_RULES_IPV6}" | while read -r rule; do
 		rule=$(echo "$rule" | xargs)
 		if [ -n "$rule" ]; then
- 			IFS=' ' add_rule IPV6 mangle "PREROUTING $rule -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
+ 			add_rule IPV6 mangle "PREROUTING $rule -m mark --mark ${MARK} -j MARK --set-xmark 0x0"
 		fi
 	done
-	)
 
 	# Set MSS clamping for packets leaving the VPN tunnel
 	if [ -n "${MSS_CLAMPING_IPV4}" ]; then
