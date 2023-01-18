@@ -734,7 +734,11 @@ rm -rf /mnt/data/on_boot.d/99-run-vpn.sh /etc/systemd/system/run-vpn.service
 rm -rf /mnt/data/split-vpn/vpn /data/split-vpn/vpn /etc/split-vpn
 rm -rf /mnt/data/on_boot.d/99-run-vpn.sh /etc/systemd/system/run-vpn.service
 ```
-    
+   
+## Performance Testing
+
+Throughput and performance tests for different VPN types can be found [here](Performance_Testing.md).
+
 ## FAQ
 
 <details>
