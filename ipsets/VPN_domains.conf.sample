@@ -28,12 +28,21 @@ DNSMASQ_CONFIG_FOLDER="/run/dnsmasq.conf.d"
 RESTART_COMMAND="killall dnsmasq"
 RELOAD_COMMAND="killall -HUP dnsmasq"
 
-# Use these settings if you are using pihole on the UDM/P.
+# Use these settings if you are using pihole installed on the UDM/P.
 # Pihole MUST be running in the host network for this to work.
+# If pihole is not running in the host network, you should instead use the dnsmasq config 
+# options above and set FORWARD_SERVER below to your pihole's IP.
 # Note, your DNSMASQ_CONFIG_FOLDER might be different depending on where you installed pihole.
 #DNSMASQ_CONFIG_FOLDER="/mnt/data/pihole/etc-dnsmasq.d"
 #RESTART_COMMAND="podman exec pihole pihole restartdns || podman restart pihole"
 #RELOAD_COMMAND="podman exec pihole pihole restartdns reload"
+
+# Set this to the DNS server's IP that dnsmasq should forward requests to if you want to forward 
+# requests to another DNS server (like an external pihole).
+# Multiple servers can be specified (separate with spaces). Note that dnsmasq will send queries 
+# to all servers configured here in parallel and return the first reply it receives.
+# A non-standard port can be specified with # (e.g.: "10.0.6.3#54").
+FORWARD_SERVERS=""
 
 # Time in cron format when the IP set cleanup will be run
 # Default "0 6 * * *" is 6 AM everyday. 

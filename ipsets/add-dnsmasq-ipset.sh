@@ -8,7 +8,7 @@
 # time and reload the dns cache. The predefined time is configured below.
 #
 # This script expects the config files be placed in the same folder.
-set -e 
+set -e
 
 create_ipsets() {
 	# Create forced and exempt IPv4 and IPv6 ipsets
@@ -28,17 +28,23 @@ create_ipsets() {
 
 add_ipset_domains() {
 	# Add domain and ipset into a map using JSON.
-	# Map[config_folder][domain] = [ipset1, ipset2, ...]
+	# Map[config_folder]["domains"][domain] = [ipset1, ipset2, ...]
+	# Map[config_folder]["forward_servers"] = $FORWARD_SERVERS
 	for domain in ${FORCED_DOMAINS}; do
 		ipsets_map=$(echo "$ipsets_map" | 
-			jq '(.["'"$DNSMASQ_CONFIG_FOLDER"'"]["'"$domain"'"] += 
+			jq '(.["'"$DNSMASQ_CONFIG_FOLDER"'"]["domains"]["'"$domain"'"] += 
 					["'"${PREFIX}FORCED4"'","'"${PREFIX}FORCED6"'"])')
 	done
 	for domain in ${EXEMPT_DOMAINS}; do
 		ipsets_map=$(echo "$ipsets_map" | 
-			jq '(.["'"$DNSMASQ_CONFIG_FOLDER"'"]["'"$domain"'"] += 
+			jq '(.["'"$DNSMASQ_CONFIG_FOLDER"'"]["domains"]["'"$domain"'"] += 
 					["'"${PREFIX}EXEMPT4"'","'"${PREFIX}EXEMPT6"'"])')
 	done
+	if [ -n "$FORWARD_SERVERS" ]; then
+		ipsets_map=$(echo "$ipsets_map" | 
+			jq '(.["'"$DNSMASQ_CONFIG_FOLDER"'"]["forward_servers"] = 
+					"'"$FORWARD_SERVERS"'")')
+	fi
 
 	# Add restart command into a unique list
 	restart_commands=$(echo "$restart_commands" | jq '. += ["'"$RESTART_COMMAND"'"] | unique')
@@ -64,14 +70,15 @@ write_jobs_to_cronfile() {
 	# Combine commands with the same cron_time and write each
 	# one to the cron file.
 	rm -f "$cron_file"
-    username=""
-    if [ $version -gt 1 ]; then
-        username="root "
-    fi
+	username=""
+	if [ $version -gt 1 ]; then
+		username="root "
+	fi
+    ipset_bin="$(which ipset)"
 	echo "$jobs_map" | jq -r 'keys[]' | while read -r cron_time; do
 		commands=$(echo "$jobs_map" | 
 			jq -r '[
-					([.["'"${cron_time}"'"]["prefixes"][] | "'"${username}"'/sbin/ipset flush \(.)FORCED4; /sbin/ipset flush \(.)FORCED6; /sbin/ipset flush \(.)EXEMPT4; /sbin/ipset flush \(.)EXEMPT6"] | join("; ")),
+					([.["'"${cron_time}"'"]["prefixes"][] | "'"${username}"''"${ipset_bin}"' flush \(.)FORCED4; '"${ipset_bin}"' flush \(.)FORCED6; '"${ipset_bin}"' flush \(.)EXEMPT4; '"${ipset_bin}"' flush \(.)EXEMPT6"] | join("; ")),
 					(.["'"${cron_time}"'"]["commands"] | join("; "))
 					] | join("; ")
 					')
@@ -79,19 +86,32 @@ write_jobs_to_cronfile() {
 	done
 	echo "add-dnsmasq-ipsets: Saving cron jobs to $cron_file"
 
-    # UnifiOS 2 and up have cron running as a systemd service and watches the cron.d folder automatically
-    # Only need to reload cron for UnifiOS < 2
-    if [ $version -lt 2 ]; then
-	    /etc/init.d/crond reload "$cron_file"
-    fi
+	# UnifiOS 2 and up have cron running as a systemd service and watches the cron.d folder automatically
+	# Only need to reload cron for UnifiOS < 2
+	if [ $version -lt 2 ]; then
+		/etc/init.d/crond reload "$cron_file"
+	fi
 }
 
 write_ipsets_to_config() {
 	# Write ipsets config to config location
 	echo "$ipsets_map" | jq -r 'keys[]' | while read -r config_location; do
 		config="${config_location}/ipsets.conf"
+
+		# Add ipset list to dnsmasq config
 		echo "add-dnsmasq-ipsets: Saving dnsmasq config to ${config}"
-		echo "$ipsets_map" | jq -r '.["'"$config_location"'"] | keys[] as $k | "ipset=/\($k)/\(.[$k] | unique | join(","))"' > "$config"
+		echo "$ipsets_map" | jq -r '.["'"$config_location"'"]["domains"] | keys[] as $k | "ipset=/\($k)/\(.[$k] | unique | join(","))"' > "$config"
+       
+		# Add forward server to dnsmasq config 
+		forward_servers="$(echo "$ipsets_map" | jq -r '.["'"$config_location"'"]["forward_servers"] // empty')"
+		if [ -n "$forward_servers" ]; then
+			for forward_server in $forward_servers; do
+				echo "add-dnsmasq-ipsets: Adding DNS forward $forward_server"
+				echo "server=/./$forward_server" >> "$config"
+			done
+			echo "add-subnet=32,128" >> "$config"
+			echo "no-resolv" >> "$config"
+		fi
 	done
 
 	# Restart dns server to apply new configuration
@@ -107,11 +127,12 @@ jobs_map="{}"
 cron_file="/etc/cron.d/ipset_cleanup"
 version=$(ubnt-device-info firmware | sed -E s/"^([0-9]+)\..*$"/"\1"/g)
 if [ -z "$version" ]; then
-    version=1
+	version=1
 fi
 
 for conf in "$(dirname "$0")"/*.conf; do
 	echo "add-dnsmasq-ipsets: Loading configuration from ${conf}"
+	unset FORCED_DOMAINS EXEMPT_DOMAINS FORWARD_SERVERS
 	. "${conf}"
 	create_ipsets
 	add_ipset_domains

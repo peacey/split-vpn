@@ -2,7 +2,8 @@
 
 The built-in dnsmasq server on the UDM/P can be set up to add the IPs of domains to a kernel IP set as soon as they are looked up. The VPN script can be configured to force these IP sets through the VPN (or exempt them). Configured together, this allows for domains to be forced through the VPN (or exempt).
 
-This configuration is supported on both the built-in dnsmasq or pihole (which uses it's own dnsmasq). If you are using pihole, it needs to run in the host network namespace. See [the instructions here](../pihole-host-mode/README.md) for how to run pihole in the host network namespace.
+This configuration is supported on both the built-in dnsmasq, pihole (which uses it's own dnsmasq), or an external DNS server.
+  * Note: If you are using pihole installed on the Unifi router itself, it is preferable to run it in the host network namespace (though it can also be configured as an external DNS server if not running in host mode). See [the instructions here](../pihole-host-mode/README.md) for how to run pihole in the host network namespace.
 
 These instructions assume you have already installed the VPN script according to the instructions [here](https://github.com/peacey/split-vpn/blob/main/README.md#how-do-i-use-this).
 
@@ -22,7 +23,8 @@ These instructions assume you have already installed the VPN script according to
 	cp VPN_domains.conf.sample VPN_domains.conf
 	```
 3. Edit the `VPN_domains.conf` file with your desired settings. 
-	* If you are using pihole on the UDM instead of the built-in dnsmasq server, then uncomment the pihole settings and comment out the dnsmasq settings. The pihole container must be running in host network mode. See [the instructions here](../pihole-host-mode/README.md).
+	* If you are using pihole on the UDM instead of the built-in dnsmasq server, then uncomment the pihole settings and comment out the dnsmasq settings. The pihole container must be running in host network mode. See [the instructions here](../pihole-host-mode/README.md). If it is not running in host network mode, then you can use the dnsmasq settings with `FORWARD_SERVERS` set to your pihole's IP.
+    * If you are using an external DNS server (pihole, adguard, or other), use the dnsmasq settings but also set `FORWARD_SERVERS` to your external DNS server's IP. This will configure dnsmasq to forward requets to your external DNS server. Note you can set multiple servers in `FORWARD_SERVERS` for redundancy if needed.
 4. Run `./add-dnsmasq-ipset.sh` and make sure there are no errors. 
 	* At this point, you can test if the ipsets and dns server are set up correctly by following the instructions [below](#how-to-test-if-the-dns-server-is-setup-correctly). 
 5. Modify your `vpn.conf` file for your VPN client. 
@@ -32,9 +34,9 @@ These instructions assume you have already installed the VPN script according to
 		EXEMPT_IPSETS="VPN_EXEMPT:dst"
 		```
 	* If you want to force different domain sets to different clients or VLANs, [see the instructions below](#how-can-i-force-different-domain-sets-to-different-clients).
-	* Note that VPN-forced clients must use your dnsmasq or pihole address as their DNS for the domain-forcing to work, so make sure that `DNS_IPV4_IP/DNS_IPV4_IP` are not set to "DHCP". 
-		* If clients are likely to bypass your DHCP options or you want to force apps with hardcoded DNS addresses, you should set `DNS_IPV4_IP/DNS_IPV6_IP` to your DNS server address (i.e. the UDMP address for local dnsmasq, or pihole address), and `DNS_IPV4_INTERFACE/DNS_IPV6_INTERFACE` to the bridge interface of that address.
-		* The bridge interface is `brX` for dnsmasq, or `brXpi` if you set up pihole in host mode according to the instructions [here](../pihole-host-mode/README.md). X is the VLAN number (e.g.: `br6` for the UDM address on VLAN 6, or `br5pi` for pihole).
+	* Note that VPN-forced clients must use your dnsmasq or pihole address (if running in host mode) as their DNS for the domain-forcing to work, so make sure that `DNS_IPV4_IP/DNS_IPV4_IP` are not set to "DHCP". 
+		* If clients are likely to bypass your DHCP options or you want to force apps with hardcoded DNS addresses, you should set `DNS_IPV4_IP/DNS_IPV6_IP` to your DNS server address (i.e. the UDMP address for local dnsmasq or external DNS forwarding, or pihole address for host mode), and `DNS_IPV4_INTERFACE/DNS_IPV6_INTERFACE` to the bridge interface of that address.
+		* The bridge interface is `brX` for dnsmasq/external DNS server, or `brXpi` if you set up pihole in host mode according to the instructions [here](../pihole-host-mode/README.md). X is the VLAN number (e.g.: `br6` for the UDM address on VLAN 6, or `br5pi` for pihole).
 
 6. Restart the VPN client to apply the new configuration. 
 7. Modify your master run script (`/etc/split-vpn/run-vpn.sh`) and add the following lines before you load the configuration for your VPN.
