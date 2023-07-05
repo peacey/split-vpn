@@ -272,10 +272,9 @@ delete_all_routes() {
 ### END OF FUNCTIONS ###
 
 # If configuration variables are not present, source config file from the PWD.
-CONFIG_FILE=""
+CONFIG_FILE="${CONFIG_FILE:-$PWD/vpn.conf}"
 if [ -z "${MARK}" ]; then
-	CONFIG_FILE="${PWD}/vpn.conf"
-	. ./vpn.conf
+	. "$CONFIG_FILE"
 fi
 
 # If no provider was given, assume openvpn for backwards compatibility.
