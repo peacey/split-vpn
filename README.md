@@ -143,8 +143,9 @@ This script is designed to be run on the UDM-Pro, UDM, UDM-SE, UDR, or UXG-Pro. 
     [Interface]
     PrivateKey = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     Address = 10.68.1.88/32,fc00:dddd:eeee:bb01::5:6666/128
-    PostUp = sh /etc/split-vpn/vpn/updown.sh %i up
-    PreDown = sh /etc/split-vpn/vpn/updown.sh %i down
+    PreUp = CONFIG_FILE=/etc/split-vpn/vpn/vpn.conf sh /etc/split-vpn/vpn/updown.sh %i pre-up
+    PostUp = CONFIG_FILE=/etc/split-vpn/vpn/vpn.conf sh /etc/split-vpn/vpn/updown.sh %i up
+    PreDown = CONFIG_FILE=/etc/split-vpn/vpn/vpn.conf sh /etc/split-vpn/vpn/updown.sh %i down
     Table = 101
 
     [Peer]

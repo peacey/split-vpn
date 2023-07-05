@@ -402,8 +402,9 @@ delete_dns_routes() {
 }
 
 # If configuration variables are not present, source the config file from the PWD.
+CONFIG_FILE="${CONFIG_FILE:-$PWD/vpn.conf}"
 if [ -z "${MARK}" ]; then
-	. ./vpn.conf
+	. "$CONFIG_FILE"
 fi
 
 # Default to tun0 if no device name was passed to this script
