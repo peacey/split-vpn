@@ -193,8 +193,10 @@ add_blackhole_routes() {
 	if [ "${DISABLE_BLACKHOLE}" = "1" ]; then
 		delete_blackhole_routes
 	else
-		ip route replace blackhole default table ${ROUTE_TABLE}
-		ip -6 route replace blackhole default table ${ROUTE_TABLE}
+		ip route replace blackhole 0.0.0.0/1 table ${ROUTE_TABLE}
+		ip route replace blackhole 128.0.0.0/1 table ${ROUTE_TABLE}
+		ip -6 route replace blackhole ::/1 table ${ROUTE_TABLE}
+		ip -6 route replace blackhole 8000::/1 table ${ROUTE_TABLE}
 	fi
 }
 
